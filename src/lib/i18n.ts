@@ -37,6 +37,11 @@ const dict = {
     stop: "Sesi durdur",
     play: "Sesli oku",
     memoryUsed: "Hafiza kullanildi",
+    theme: "Tema",
+    themeLight: "Aydinlik",
+    themeDark: "Karanlik",
+    themeSystem: "Sistem",
+    ttsError: "Ses uretilemedi. TTS ayarlarini kontrol edin.",
   },
   en: {
     appName: "Local Assistant",
@@ -74,6 +79,11 @@ const dict = {
     stop: "Stop audio",
     play: "Read aloud",
     memoryUsed: "Memory used",
+    theme: "Theme",
+    themeLight: "Light",
+    themeDark: "Dark",
+    themeSystem: "System",
+    ttsError: "Speech could not be generated. Check the TTS settings.",
   },
 } as const;
 
