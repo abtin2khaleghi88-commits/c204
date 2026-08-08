@@ -3,6 +3,12 @@
  * Frontend client: thin wrapper over the single /api/assistant endpoint.
  */
 
+import {
+  playAudioSource,
+  playBrowserSpeech,
+  type PlaybackHandle,
+} from "@/lib/audio-player";
+
 export type Language = "tr" | "en";
 
 export type UiMessage = {
