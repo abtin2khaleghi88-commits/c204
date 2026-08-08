@@ -74,10 +74,6 @@ export const Route = createFileRoute("/api/assistant")({
             case "tts": {
               const text = String(body["text"] ?? "").slice(0, 4000);
               const result = await synthesizeSpeech({ text, language });
-              if (!result) {
-                // Yerel TTS tanimli degil -> istemci tarayici sesini kullanir.
-                return Response.json({ fallback: true });
-              }
               if ("base64" in result) {
                 return Response.json({ audio: result.base64, contentType: result.contentType });
               }
@@ -85,6 +81,7 @@ export const Route = createFileRoute("/api/assistant")({
                 headers: { "Content-Type": result.contentType },
               });
             }
+
 
             case "memory.list":
               return Response.json({ records: memory.listMemories() });
