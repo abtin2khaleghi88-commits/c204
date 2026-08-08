@@ -96,39 +96,64 @@ POST /api/assistant
 
 ## TTS Entegrasyon Rehberi (TTS Integration Guide)
 
+### Hangi motor kullaniliyor? / Which engine is used?
+
+Tarayici içi `SpeechSynthesis` **tamamen kaldirildi**. Artik gercek noral TTS
+kullaniliyor ve motor `.env` uzerinden secilebiliyor:
+
+```
+TTS_PROVIDER=lovable        # lovable | elevenlabs | azure | google | local
+```
+
+| Deger | Motor | Gerekli .env |
+| --- | --- | --- |
+| `lovable` (varsayilan) | Lovable AI Gateway noral TTS (`openai/gpt-4o-mini-tts`) | yok — `LOVABLE_API_KEY` otomatik saglanir |
+| `elevenlabs` | ElevenLabs (`eleven_multilingual_v2`, Turkce dogal) | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` |
+| `azure` | Azure Neural TTS | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` |
+| `google` | Google Cloud Text-to-Speech | `GOOGLE_TTS_API_KEY` |
+| `local` | **Sizin kendi motorunuz** | `LOCAL_TTS_URL` |
+
+Ses/model ince ayarlari: `TTS_MODEL`, `TTS_VOICE`, `AZURE_VOICE_TR/EN`,
+`GOOGLE_VOICE_TR/EN`, `ELEVENLABS_MODEL`.
+
 ### Ses üretimi NEREDE yapılıyor? / Where is speech generated?
 
-Tüm kod tabanında TTS'e giden **tek** nokta:
+Tum kod tabaninda TTS'e giden **tek** nokta:
 
 - **Dosya:** `src/lib/backend/tts-provider.server.ts`
-- **Fonksiyon:** `synthesizeSpeech()` → içinde `callLocalTts()`
-- Kendi motorunuzu bağlamak için **sadece `callLocalTts()` gövdesini** değiştirin.
+- **Merkezi fonksiyon:** `synthesizeSpeech()` — motoru `TTS_PROVIDER`'a gore secer
+- Motor bazli fonksiyonlar: `callLovableTts()`, `callElevenLabsTts()`,
+  `callAzureTts()`, `callGoogleTts()`, `callLocalTts()`
 
-Endpoint `.env` üzerinden ayarlanır (kod değişikliği gerekmez):
+### KENDI MOTORUNUZU BAGLAMAK (2 adim)
 
-```
-LOCAL_TTS_URL=http://localhost:5002/api/tts
-```
-
-`LOCAL_TTS_URL` tanımlı değilse `synthesizeSpeech()` `null` döner ve arayüz
-geçici olarak tarayıcının `SpeechSynthesis` sesini kullanır. Kendi motorunuzu
-bağladığınız anda bu fallback hiç çalışmaz.
+1. `.env` dosyasina:
+   ```
+   TTS_PROVIDER=local
+   LOCAL_TTS_URL=http://localhost:5002/api/tts
+   ```
+2. Gerekirse **sadece** `src/lib/backend/tts-provider.server.ts` icindeki
+   `callLocalTts()` fonksiyonunun govdesini kendi API sekline (govde alanlari,
+   header'lar, GET/POST) gore degistirin. Baska hicbir dosyaya dokunmayin.
 
 ### Desteklenen yanıt biçimleri
 
-`callLocalTts()` iki biçimden birini döndürebilir; ikisi de desteklenir:
+`callLocalTts()` (ve diger motorlar) iki bicimden birini dondurebilir:
 
 | Motorunuz ne döndürüyorsa | Dönüş değeri | İstemcide |
 | --- | --- | --- |
 | Ham ses (wav/mp3/ogg, binary/stream) | `{ audio: ArrayBuffer, contentType }` | blob olarak çalınır |
 | JSON + base64 (`{ audio: "UklGR..." }`) | `{ base64: string, contentType }` | base64 olarak çalınır |
 
+Motor hata verirse exception firlatilir; artik sessizce tarayici sesine
+dusulmez (fallback yok).
+
 ### Akış (data flow)
 
 ```text
 Arayüz  →  speak()                       src/lib/assistant-client.ts
         →  POST /api/assistant {action:"tts"}   src/routes/api/assistant.ts
-        →  synthesizeSpeech() → callLocalTts()  src/lib/backend/tts-provider.server.ts
+        →  synthesizeSpeech()                   src/lib/backend/tts-provider.server.ts
         →  playAudioSource()                    src/lib/audio-player.ts
 ```
 
@@ -136,14 +161,22 @@ Arayüz  →  speak()                       src/lib/assistant-client.ts
 
 - **Dosya:** `src/lib/audio-player.ts`
 - `playAudioSource(source, { onLevels, onEnded })` — `Blob`, `ArrayBuffer`,
-  base64/data-URL string veya `Response` (stream) kabul eder. Belirli bir TTS
-  motoruna bağlı değildir.
-- `playBrowserSpeech()` — yalnızca motor bağlı değilken kullanılan geçici fallback.
+  base64/data-URL string veya `Response` (stream) kabul eder. Hicbir TTS
+  motoruna bagli degildir; ileride kendi motorunuzun sesini de ayni sekilde calar.
 
 ### Gerçek sese senkron dalga animasyonu
 
-`playAudioSource()` Web Audio API'nin **AnalyserNode**'unu kullanır; her
-animasyon karesinde 9 frekans bandının gerçek genliğini `0..1` aralığında
-`onLevels` ile yayar. `src/components/assistant/VoiceWave.tsx` bu değerleri
-doğrudan çubuk yüksekliğine ve avatar parıltısına uygular — sabit bir CSS
-döngüsü yoktur, ses yükselip alçaldıkça animasyon buna tepki verir.
+`playAudioSource()` Web Audio API'nin **AnalyserNode**'unu kullanir; her
+animasyon karesinde 9 frekans bandinin gercek genligini `0..1` araliginda
+`onLevels` ile yayar. `src/components/assistant/VoiceWave.tsx` bu degerleri
+dogrudan cubuk yuksekligine ve avatar parıltısına uygular.
+
+---
+
+## Tema / Dark Mode
+
+- **Dosya:** `src/lib/theme.ts` — `light | dark | system` modlari, `localStorage`
+  ile kalici, `system` modunda isletim sistemi temasini otomatik takip eder.
+- Hizli gecis: sohbet basligindaki gunes/ay butonu. Detayli secim: Ayarlar > Tema.
+- Renkler `src/styles.css` icindeki `:root` ve `.dark` token'larindan gelir;
+  ikisi de mavi tonlu, yumusak kontrastli olacak sekilde ayarlandi.
