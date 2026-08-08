@@ -1,4 +1,4 @@
-import { Languages } from "lucide-react";
+import { Languages, Palette } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,16 +12,27 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { Settings } from "@/lib/chat-storage";
 import { t } from "@/lib/i18n";
+import type { ThemeMode } from "@/lib/theme";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   settings: Settings;
   onChange: (settings: Settings) => void;
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
 };
 
-export function SettingsDialog({ open, onOpenChange, settings, onChange }: Props) {
+export function SettingsDialog({
+  open,
+  onOpenChange,
+  settings,
+  onChange,
+  theme,
+  onThemeChange,
+}: Props) {
   const language = settings.language;
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -55,6 +66,31 @@ export function SettingsDialog({ open, onOpenChange, settings, onChange }: Props
               ))}
             </div>
           </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <Label className="flex items-center gap-2">
+              <Palette className="h-4 w-4 text-primary" />
+              {t(language, "theme")}
+            </Label>
+            <div className="flex rounded-full bg-secondary p-1">
+              {(["light", "dark", "system"] as const).map((mode) => (
+                <Button
+                  key={mode}
+                  size="sm"
+                  variant={theme === mode ? "default" : "ghost"}
+                  className="rounded-full px-3"
+                  onClick={() => onThemeChange(mode)}
+                >
+                  {t(
+                    language,
+                    mode === "light" ? "themeLight" : mode === "dark" ? "themeDark" : "themeSystem",
+                  )}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+
 
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="auto-speak">{t(language, "autoSpeak")}</Label>

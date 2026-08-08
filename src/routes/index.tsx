@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+
 
 import { Composer, type PendingFile } from "@/components/assistant/Composer";
 import { ConversationSidebar } from "@/components/assistant/ConversationSidebar";
@@ -19,6 +23,15 @@ import {
 } from "@/lib/chat-storage";
 import { defaultSettings } from "@/lib/chat-storage";
 import { t } from "@/lib/i18n";
+import {
+  applyTheme,
+  loadTheme,
+  prefersDark,
+  saveTheme,
+  watchSystemTheme,
+  type ThemeMode,
+} from "@/lib/theme";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -52,6 +65,8 @@ function AssistantPage() {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
+  const [theme, setTheme] = useState<ThemeMode>("system");
+  const [isDark, setIsDark] = useState(false);
   const playbackRef = useRef<PlaybackHandle | null>(null);
 
   // Ilk yukleme: yerel depodan geri yukle
@@ -62,7 +77,28 @@ function AssistantPage() {
     setSettings(storedSettings);
     setConversations(list);
     setActiveId(list[0]!.id);
+
+    const storedTheme = loadTheme();
+    setTheme(storedTheme);
+    applyTheme(storedTheme);
+    setIsDark(storedTheme === "dark" || (storedTheme === "system" && prefersDark()));
   }, []);
+
+  // "system" modunda isletim sistemi temasini otomatik takip et
+  useEffect(() => {
+    if (theme !== "system") return;
+    return watchSystemTheme(() => {
+      applyTheme("system");
+      setIsDark(prefersDark());
+    });
+  }, [theme]);
+
+  const updateTheme = (next: ThemeMode) => {
+    setTheme(next);
+    saveTheme(next);
+    applyTheme(next);
+    setIsDark(next === "dark" || (next === "system" && prefersDark()));
+  };
 
   const language = settings.language;
   const active = conversations.find((conversation) => conversation.id === activeId);
@@ -76,6 +112,7 @@ function AssistantPage() {
     setSettings(next);
     saveSettings(next);
   };
+
 
   const playAudio = async (message: UiMessage) => {
     playbackRef.current?.stop();
@@ -198,9 +235,21 @@ function AssistantPage() {
           <h2 className="truncate text-sm font-medium">
             {active?.title ?? t(language, "newChat")}
           </h2>
-          <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-medium text-secondary-foreground">
-            {language === "tr" ? "Türkçe" : "English"}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-medium text-secondary-foreground">
+              {language === "tr" ? "Türkçe" : "English"}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              aria-label={t(language, "theme")}
+              title={t(language, "theme")}
+              onClick={() => updateTheme(isDark ? "light" : "dark")}
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          </div>
         </header>
 
         <MessageList
@@ -235,7 +284,10 @@ function AssistantPage() {
         onOpenChange={setSettingsOpen}
         settings={settings}
         onChange={updateSettings}
+        theme={theme}
+        onThemeChange={updateTheme}
       />
+
     </div>
   );
 }

@@ -3,11 +3,8 @@
  * Frontend client: thin wrapper over the single /api/assistant endpoint.
  */
 
-import {
-  playAudioSource,
-  playBrowserSpeech,
-  type PlaybackHandle,
-} from "@/lib/audio-player";
+import { playAudioSource, type PlaybackHandle } from "@/lib/audio-player";
+
 
 export type Language = "tr" | "en";
 
@@ -67,13 +64,13 @@ export function deleteMemory(id: string) {
 
 /**
  * TTS: tek merkezi uc (`POST /api/assistant` + action:"tts") cagrilir.
- * Backend ne dondururse dondurmez, oynatici genel:
- *   - audio/* govde   -> blob olarak calinir
+ * Backend ne dondururse oynatici genel kalir:
+ *   - audio/* govde              -> blob olarak calinir
  *   - { audio: "<base64>" } JSON -> base64 olarak calinir
- *   - { fallback: true } -> yerel TTS tanimli degil, tarayici sesi kullanilir
  *
- * Kendi TTS motorunuzu baglamak icin SADECE
- * src/lib/backend/tts-provider.server.ts dosyasini degistirin.
+ * Motor secimi .env'deki TTS_PROVIDER ile yapilir; kendi motorunuzu baglamak
+ * icin SADECE src/lib/backend/tts-provider.server.ts dosyasini degistirin.
+ * Tarayici SpeechSynthesis fallback'i kaldirildi.
  */
 export async function speak(
   text: string,
@@ -88,15 +85,17 @@ export async function speak(
 
   const contentType = res.headers.get("content-type") ?? "";
 
-  if (res.ok && contentType.startsWith("audio")) {
+  if (!res.ok) {
+    throw new Error(`TTS failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
+  }
+
+  if (contentType.startsWith("audio")) {
     return playAudioSource(await res.blob(), handlers);
   }
 
-  if (res.ok && contentType.includes("json")) {
-    const payload = (await res.json()) as { audio?: string; fallback?: boolean };
-    if (payload.audio) return playAudioSource(payload.audio, handlers);
-  }
-
-  return playBrowserSpeech(text, language === "tr" ? "tr-TR" : "en-US", handlers);
+  const payload = (await res.json().catch(() => ({}))) as { audio?: string; error?: string };
+  if (payload.audio) return playAudioSource(payload.audio, handlers);
+  throw new Error(payload.error ?? "TTS returned no audio");
 }
+
 

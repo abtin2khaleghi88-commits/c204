@@ -6,7 +6,7 @@
  * Govdede `action` alani ile islem secilir:
  *
  *   { action: "chat",          messages, language, useShortTerm, useLongTerm, attachments }
- *   { action: "tts",           text, language }              -> audio veya {fallback:true}
+ *   { action: "tts",           text, language }              -> audio/* veya { audio: base64 }
  *   { action: "memory.list"    }
  *   { action: "memory.upsert", record }
  *   { action: "memory.delete", id }
@@ -74,10 +74,6 @@ export const Route = createFileRoute("/api/assistant")({
             case "tts": {
               const text = String(body["text"] ?? "").slice(0, 4000);
               const result = await synthesizeSpeech({ text, language });
-              if (!result) {
-                // Yerel TTS tanimli degil -> istemci tarayici sesini kullanir.
-                return Response.json({ fallback: true });
-              }
               if ("base64" in result) {
                 return Response.json({ audio: result.base64, contentType: result.contentType });
               }
@@ -85,6 +81,7 @@ export const Route = createFileRoute("/api/assistant")({
                 headers: { "Content-Type": result.contentType },
               });
             }
+
 
             case "memory.list":
               return Response.json({ records: memory.listMemories() });
