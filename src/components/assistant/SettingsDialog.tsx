@@ -1,4 +1,4 @@
-import { Languages } from "lucide-react";
+import { Languages, Palette } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,16 +12,27 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { Settings } from "@/lib/chat-storage";
 import { t } from "@/lib/i18n";
+import type { ThemeMode } from "@/lib/theme";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   settings: Settings;
   onChange: (settings: Settings) => void;
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
 };
 
-export function SettingsDialog({ open, onOpenChange, settings, onChange }: Props) {
+export function SettingsDialog({
+  open,
+  onOpenChange,
+  settings,
+  onChange,
+  theme,
+  onThemeChange,
+}: Props) {
   const language = settings.language;
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
