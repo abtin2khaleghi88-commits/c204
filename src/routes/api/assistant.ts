@@ -78,6 +78,9 @@ export const Route = createFileRoute("/api/assistant")({
                 // Yerel TTS tanimli degil -> istemci tarayici sesini kullanir.
                 return Response.json({ fallback: true });
               }
+              if ("base64" in result) {
+                return Response.json({ audio: result.base64, contentType: result.contentType });
+              }
               return new Response(result.audio, {
                 headers: { "Content-Type": result.contentType },
               });

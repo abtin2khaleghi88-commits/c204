@@ -91,3 +91,59 @@ POST /api/assistant
 - Dosya ekleme: buton + sürükle-bırak; metin dosyalarının içeriği prompt'a özet olarak geçer.
 - Ayarlar: Türkçe/İngilizce geçişi, otomatik sesli okuma, hafıza tercihleri.
 - AI konuşurken ses dalgası + parıltı animasyonu.
+
+---
+
+## TTS Entegrasyon Rehberi (TTS Integration Guide)
+
+### Ses üretimi NEREDE yapılıyor? / Where is speech generated?
+
+Tüm kod tabanında TTS'e giden **tek** nokta:
+
+- **Dosya:** `src/lib/backend/tts-provider.server.ts`
+- **Fonksiyon:** `synthesizeSpeech()` → içinde `callLocalTts()`
+- Kendi motorunuzu bağlamak için **sadece `callLocalTts()` gövdesini** değiştirin.
+
+Endpoint `.env` üzerinden ayarlanır (kod değişikliği gerekmez):
+
+```
+LOCAL_TTS_URL=http://localhost:5002/api/tts
+```
+
+`LOCAL_TTS_URL` tanımlı değilse `synthesizeSpeech()` `null` döner ve arayüz
+geçici olarak tarayıcının `SpeechSynthesis` sesini kullanır. Kendi motorunuzu
+bağladığınız anda bu fallback hiç çalışmaz.
+
+### Desteklenen yanıt biçimleri
+
+`callLocalTts()` iki biçimden birini döndürebilir; ikisi de desteklenir:
+
+| Motorunuz ne döndürüyorsa | Dönüş değeri | İstemcide |
+| --- | --- | --- |
+| Ham ses (wav/mp3/ogg, binary/stream) | `{ audio: ArrayBuffer, contentType }` | blob olarak çalınır |
+| JSON + base64 (`{ audio: "UklGR..." }`) | `{ base64: string, contentType }` | base64 olarak çalınır |
+
+### Akış (data flow)
+
+```text
+Arayüz  →  speak()                       src/lib/assistant-client.ts
+        →  POST /api/assistant {action:"tts"}   src/routes/api/assistant.ts
+        →  synthesizeSpeech() → callLocalTts()  src/lib/backend/tts-provider.server.ts
+        →  playAudioSource()                    src/lib/audio-player.ts
+```
+
+### Genel ses oynatıcı
+
+- **Dosya:** `src/lib/audio-player.ts`
+- `playAudioSource(source, { onLevels, onEnded })` — `Blob`, `ArrayBuffer`,
+  base64/data-URL string veya `Response` (stream) kabul eder. Belirli bir TTS
+  motoruna bağlı değildir.
+- `playBrowserSpeech()` — yalnızca motor bağlı değilken kullanılan geçici fallback.
+
+### Gerçek sese senkron dalga animasyonu
+
+`playAudioSource()` Web Audio API'nin **AnalyserNode**'unu kullanır; her
+animasyon karesinde 9 frekans bandının gerçek genliğini `0..1` aralığında
+`onLevels` ile yayar. `src/components/assistant/VoiceWave.tsx` bu değerleri
+doğrudan çubuk yüksekliğine ve avatar parıltısına uygular — sabit bir CSS
+döngüsü yoktur, ses yükselip alçaldıkça animasyon buna tepki verir.
