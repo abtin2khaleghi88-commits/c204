@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+
 
 import { Composer, type PendingFile } from "@/components/assistant/Composer";
 import { ConversationSidebar } from "@/components/assistant/ConversationSidebar";
