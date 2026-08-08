@@ -6,7 +6,7 @@
  * Govdede `action` alani ile islem secilir:
  *
  *   { action: "chat",          messages, language, useShortTerm, useLongTerm, attachments }
- *   { action: "tts",           text, language }              -> audio veya {fallback:true}
+ *   { action: "tts",           text, language }              -> audio/* veya { audio: base64 }
  *   { action: "memory.list"    }
  *   { action: "memory.upsert", record }
  *   { action: "memory.delete", id }
