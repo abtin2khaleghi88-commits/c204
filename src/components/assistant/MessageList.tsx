@@ -11,6 +11,7 @@ type Props = {
   thinking: boolean;
   memoryScanning: boolean;
   speakingId: string | null;
+  levels: number[];
   onSpeak: (message: UiMessage) => void;
   onStop: () => void;
 };
@@ -21,6 +22,7 @@ export function MessageList({
   thinking,
   memoryScanning,
   speakingId,
+  levels,
   onSpeak,
   onStop,
 }: Props) {
@@ -65,7 +67,10 @@ export function MessageList({
             </div>
           ) : (
             <div key={message.id} className="animate-rise-in flex gap-3">
-              <AssistantOrb speaking={speakingId === message.id} />
+              <AssistantOrb
+                speaking={speakingId === message.id}
+                level={speakingId === message.id ? Math.max(...levels, 0) : 0}
+              />
               <div className="min-w-0 flex-1">
                 <div className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">
                   {message.content}
@@ -73,7 +78,7 @@ export function MessageList({
                 <div className="mt-2 flex items-center gap-3">
                   {speakingId === message.id ? (
                     <>
-                      <VoiceWave active label={t(language, "speaking")} />
+                      <VoiceWave active levels={levels} label={t(language, "speaking")} />
                       <Button size="sm" variant="ghost" className="gap-1.5" onClick={onStop}>
                         <Square className="h-3.5 w-3.5" />
                         {t(language, "stop")}

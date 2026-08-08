@@ -6,7 +6,8 @@ import { ConversationSidebar } from "@/components/assistant/ConversationSidebar"
 import { MemoryPanel } from "@/components/assistant/MemoryPanel";
 import { MessageList } from "@/components/assistant/MessageList";
 import { SettingsDialog } from "@/components/assistant/SettingsDialog";
-import { sendChat, speak, stopSpeaking, type UiMessage } from "@/lib/assistant-client";
+import { sendChat, speak, type UiMessage } from "@/lib/assistant-client";
+import type { PlaybackHandle } from "@/lib/audio-player";
 import {
   loadConversations,
   loadSettings,
@@ -50,7 +51,8 @@ function AssistantPage() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const stopRef = useRef<(() => void) | null>(null);
+  const [levels, setLevels] = useState<number[]>([]);
+  const playbackRef = useRef<PlaybackHandle | null>(null);
 
   // Ilk yukleme: yerel depodan geri yukle
   useEffect(() => {
@@ -76,20 +78,28 @@ function AssistantPage() {
   };
 
   const playAudio = async (message: UiMessage) => {
-    stopRef.current?.();
-    stopSpeaking();
+    playbackRef.current?.stop();
+    playbackRef.current = null;
     setSpeakingId(message.id);
     try {
-      stopRef.current = await speak(message.content, language);
+      playbackRef.current = await speak(message.content, language, {
+        onLevels: setLevels,
+        onEnded: () => {
+          playbackRef.current = null;
+          setLevels([]);
+          setSpeakingId(null);
+        },
+      });
     } catch {
+      setLevels([]);
       setSpeakingId(null);
     }
   };
 
   const stopAudio = () => {
-    stopRef.current?.();
-    stopSpeaking();
-    stopRef.current = null;
+    playbackRef.current?.stop();
+    playbackRef.current = null;
+    setLevels([]);
     setSpeakingId(null);
   };
 
@@ -199,6 +209,7 @@ function AssistantPage() {
           thinking={thinking}
           memoryScanning={memoryScanning}
           speakingId={speakingId}
+          levels={levels}
           onSpeak={(message) => void playAudio(message)}
           onStop={stopAudio}
         />
