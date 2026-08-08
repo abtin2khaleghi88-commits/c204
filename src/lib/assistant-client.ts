@@ -60,10 +60,20 @@ export function deleteMemory(id: string) {
 }
 
 /**
- * TTS: once yerel TTS sunucusu denenir, yoksa tarayici SpeechSynthesis.
- * Returns a cleanup/stop function.
+ * TTS: tek merkezi uc (`POST /api/assistant` + action:"tts") cagrilir.
+ * Backend ne dondururse dondurmez, oynatici genel:
+ *   - audio/* govde   -> blob olarak calinir
+ *   - { audio: "<base64>" } JSON -> base64 olarak calinir
+ *   - { fallback: true } -> yerel TTS tanimli degil, tarayici sesi kullanilir
+ *
+ * Kendi TTS motorunuzu baglamak icin SADECE
+ * src/lib/backend/tts-provider.server.ts dosyasini degistirin.
  */
-export async function speak(text: string, language: Language): Promise<() => void> {
+export async function speak(
+  text: string,
+  language: Language,
+  handlers: { onLevels?: (levels: number[]) => void; onEnded?: () => void } = {},
+): Promise<PlaybackHandle> {
   const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -71,29 +81,16 @@ export async function speak(text: string, language: Language): Promise<() => voi
   });
 
   const contentType = res.headers.get("content-type") ?? "";
+
   if (res.ok && contentType.startsWith("audio")) {
-    const url = URL.createObjectURL(await res.blob());
-    const audio = new Audio(url);
-    await audio.play().catch(() => {});
-    return () => {
-      audio.pause();
-      URL.revokeObjectURL(url);
-    };
+    return playAudioSource(await res.blob(), handlers);
   }
 
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language === "tr" ? "tr-TR" : "en-US";
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-    return () => window.speechSynthesis.cancel();
+  if (res.ok && contentType.includes("json")) {
+    const payload = (await res.json()) as { audio?: string; fallback?: boolean };
+    if (payload.audio) return playAudioSource(payload.audio, handlers);
   }
 
-  return () => {};
+  return playBrowserSpeech(text, language === "tr" ? "tr-TR" : "en-US", handlers);
 }
 
-export function stopSpeaking() {
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
-  }
-}
