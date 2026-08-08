@@ -23,6 +23,15 @@ import {
 } from "@/lib/chat-storage";
 import { defaultSettings } from "@/lib/chat-storage";
 import { t } from "@/lib/i18n";
+import {
+  applyTheme,
+  loadTheme,
+  prefersDark,
+  saveTheme,
+  watchSystemTheme,
+  type ThemeMode,
+} from "@/lib/theme";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -56,6 +65,8 @@ function AssistantPage() {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
+  const [theme, setTheme] = useState<ThemeMode>("system");
+  const [isDark, setIsDark] = useState(false);
   const playbackRef = useRef<PlaybackHandle | null>(null);
 
   // Ilk yukleme: yerel depodan geri yukle
@@ -66,7 +77,28 @@ function AssistantPage() {
     setSettings(storedSettings);
     setConversations(list);
     setActiveId(list[0]!.id);
+
+    const storedTheme = loadTheme();
+    setTheme(storedTheme);
+    applyTheme(storedTheme);
+    setIsDark(storedTheme === "dark" || (storedTheme === "system" && prefersDark()));
   }, []);
+
+  // "system" modunda isletim sistemi temasini otomatik takip et
+  useEffect(() => {
+    if (theme !== "system") return;
+    return watchSystemTheme(() => {
+      applyTheme("system");
+      setIsDark(prefersDark());
+    });
+  }, [theme]);
+
+  const updateTheme = (next: ThemeMode) => {
+    setTheme(next);
+    saveTheme(next);
+    applyTheme(next);
+    setIsDark(next === "dark" || (next === "system" && prefersDark()));
+  };
 
   const language = settings.language;
   const active = conversations.find((conversation) => conversation.id === activeId);
@@ -80,6 +112,7 @@ function AssistantPage() {
     setSettings(next);
     saveSettings(next);
   };
+
 
   const playAudio = async (message: UiMessage) => {
     playbackRef.current?.stop();
