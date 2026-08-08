@@ -68,6 +68,31 @@ export function SettingsDialog({
           </div>
 
           <div className="flex items-center justify-between gap-4">
+            <Label className="flex items-center gap-2">
+              <Palette className="h-4 w-4 text-primary" />
+              {t(language, "theme")}
+            </Label>
+            <div className="flex rounded-full bg-secondary p-1">
+              {(["light", "dark", "system"] as const).map((mode) => (
+                <Button
+                  key={mode}
+                  size="sm"
+                  variant={theme === mode ? "default" : "ghost"}
+                  className="rounded-full px-3"
+                  onClick={() => onThemeChange(mode)}
+                >
+                  {t(
+                    language,
+                    mode === "light" ? "themeLight" : mode === "dark" ? "themeDark" : "themeSystem",
+                  )}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+
+
+          <div className="flex items-center justify-between gap-4">
             <Label htmlFor="auto-speak">{t(language, "autoSpeak")}</Label>
             <Switch
               id="auto-speak"

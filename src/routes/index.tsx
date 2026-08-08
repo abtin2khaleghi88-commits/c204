@@ -198,9 +198,21 @@ function AssistantPage() {
           <h2 className="truncate text-sm font-medium">
             {active?.title ?? t(language, "newChat")}
           </h2>
-          <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-medium text-secondary-foreground">
-            {language === "tr" ? "Türkçe" : "English"}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-medium text-secondary-foreground">
+              {language === "tr" ? "Türkçe" : "English"}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              aria-label={t(language, "theme")}
+              title={t(language, "theme")}
+              onClick={() => updateTheme(isDark ? "light" : "dark")}
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          </div>
         </header>
 
         <MessageList
@@ -235,7 +247,10 @@ function AssistantPage() {
         onOpenChange={setSettingsOpen}
         settings={settings}
         onChange={updateSettings}
+        theme={theme}
+        onThemeChange={updateTheme}
       />
+
     </div>
   );
 }
