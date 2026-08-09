@@ -74,6 +74,11 @@ export const Route = createFileRoute("/api/assistant")({
             case "tts": {
               const text = String(body["text"] ?? "").slice(0, 4000);
               const result = await synthesizeSpeech({ text, language });
+              // Yerel TTS sunucusu kapali -> istemci GECICI tarayici sesine duser.
+              if ("unavailable" in result) {
+                console.warn("[api/assistant] tts fallback:", result.reason);
+                return Response.json({ fallback: true, reason: result.reason });
+              }
               if ("base64" in result) {
                 return Response.json({ audio: result.base64, contentType: result.contentType });
               }
