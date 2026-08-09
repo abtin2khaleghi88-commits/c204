@@ -12,24 +12,17 @@
  *   LOCAL_AI_CHAT_PATH=/api/chat
  *   LOCAL_AI_MODEL=llama3.1
  *
- *   # --- TTS (motor secimi) ---
- *   TTS_PROVIDER=lovable            # lovable | elevenlabs | azure | google | local
- *   TTS_MODEL=openai/gpt-4o-mini-tts
- *   TTS_VOICE=alloy
- *   ELEVENLABS_API_KEY=...          # TTS_PROVIDER=elevenlabs
- *   ELEVENLABS_VOICE_ID=EXAVITQu4vr4xnSDxMaL
- *   ELEVENLABS_MODEL=eleven_multilingual_v2
- *   AZURE_SPEECH_KEY=...            # TTS_PROVIDER=azure
- *   AZURE_SPEECH_REGION=westeurope
- *   GOOGLE_TTS_API_KEY=...          # TTS_PROVIDER=google
- *   LOCAL_TTS_URL=http://localhost:5002/api/tts   # TTS_PROVIDER=local
+ *   # --- TTS (SADECE yerel sunucu; ucretli saglayici YOK) ---
+ *   LOCAL_TTS_URL=http://localhost:8880/synthesize
+ *   LOCAL_TTS_TIMEOUT_MS=8000
  *
  *   # --- Hafiza ---
  *   LOCAL_MEMORY_BASE_URL=http://localhost:8000  # Chroma
  * ============================================================================
  */
 
-export type TtsProvider = "lovable" | "elevenlabs" | "azure" | "google" | "local";
+/** Tek desteklenen motor: sizin yerel TTS sunucunuz. */
+export type TtsProvider = "local";
 
 export type LocalStackConfig = {
   ai: {
@@ -41,11 +34,10 @@ export type LocalStackConfig = {
   };
   tts: {
     provider: TtsProvider;
-    lovable: { apiKey: string; model: string; voice: string };
-    elevenlabs: { apiKey: string; voiceId: string; model: string };
-    azure: { apiKey: string; region: string; voiceTr: string; voiceEn: string };
-    google: { apiKey: string; voiceTr: string; voiceEn: string };
-    local: { url: string };
+    /** Yerel TTS sunucusu endpoint'i (varsayilan http://localhost:8880/synthesize) */
+    url: string;
+    /** Istek zaman asimi (ms) — sunucu kapaliysa hizli dusmek icin */
+    timeoutMs: number;
   };
   memory: {
     baseUrl: string;
@@ -63,7 +55,6 @@ export function getLocalStackConfig(): LocalStackConfig {
 
   const aiBaseUrl = env("LOCAL_AI_BASE_URL");
   const memoryBaseUrl = env("LOCAL_MEMORY_BASE_URL");
-  const provider = (env("TTS_PROVIDER") || "lovable") as TtsProvider;
 
   return {
     ai: {
@@ -73,29 +64,9 @@ export function getLocalStackConfig(): LocalStackConfig {
       enabled: Boolean(aiBaseUrl),
     },
     tts: {
-      provider,
-      lovable: {
-        apiKey: env("LOVABLE_API_KEY"),
-        model: env("TTS_MODEL") || "openai/gpt-4o-mini-tts",
-        voice: env("TTS_VOICE") || "alloy",
-      },
-      elevenlabs: {
-        apiKey: env("ELEVENLABS_API_KEY"),
-        voiceId: env("ELEVENLABS_VOICE_ID") || "EXAVITQu4vr4xnSDxMaL",
-        model: env("ELEVENLABS_MODEL") || "eleven_multilingual_v2",
-      },
-      azure: {
-        apiKey: env("AZURE_SPEECH_KEY"),
-        region: env("AZURE_SPEECH_REGION") || "westeurope",
-        voiceTr: env("AZURE_VOICE_TR") || "tr-TR-EmelNeural",
-        voiceEn: env("AZURE_VOICE_EN") || "en-US-JennyNeural",
-      },
-      google: {
-        apiKey: env("GOOGLE_TTS_API_KEY"),
-        voiceTr: env("GOOGLE_VOICE_TR") || "tr-TR-Wavenet-D",
-        voiceEn: env("GOOGLE_VOICE_EN") || "en-US-Neural2-F",
-      },
-      local: { url: env("LOCAL_TTS_URL") },
+      provider: "local",
+      url: env("LOCAL_TTS_URL") || "http://localhost:8880/synthesize",
+      timeoutMs: Number(env("LOCAL_TTS_TIMEOUT_MS") || 8000),
     },
     memory: {
       baseUrl: memoryBaseUrl || "http://localhost:8000",
