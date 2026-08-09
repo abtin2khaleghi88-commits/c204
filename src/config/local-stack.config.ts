@@ -29,7 +29,8 @@
  * ============================================================================
  */
 
-export type TtsProvider = "lovable" | "elevenlabs" | "azure" | "google" | "local";
+/** Tek desteklenen motor: sizin yerel TTS sunucunuz. */
+export type TtsProvider = "local";
 
 export type LocalStackConfig = {
   ai: {
@@ -41,11 +42,10 @@ export type LocalStackConfig = {
   };
   tts: {
     provider: TtsProvider;
-    lovable: { apiKey: string; model: string; voice: string };
-    elevenlabs: { apiKey: string; voiceId: string; model: string };
-    azure: { apiKey: string; region: string; voiceTr: string; voiceEn: string };
-    google: { apiKey: string; voiceTr: string; voiceEn: string };
-    local: { url: string };
+    /** Yerel TTS sunucusu endpoint'i (varsayilan http://localhost:8880/synthesize) */
+    url: string;
+    /** Istek zaman asimi (ms) — sunucu kapaliysa hizli dusmek icin */
+    timeoutMs: number;
   };
   memory: {
     baseUrl: string;
