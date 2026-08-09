@@ -46,7 +46,7 @@ Kendi yerel modelinizi bağlamak için `.env` dosyasına şunları ekleyin:
 LOCAL_AI_BASE_URL=http://localhost:11434   # Ollama
 LOCAL_AI_CHAT_PATH=/api/chat
 LOCAL_AI_MODEL=llama3.1
-LOCAL_TTS_URL=http://localhost:5002/api/tts
+LOCAL_TTS_URL=http://localhost:8880/synthesize
 LOCAL_MEMORY_BASE_URL=http://localhost:8000  # Chroma
 MEMORY_SHORT_TERM_COUNT=2
 MEMORY_COLLECTION=local_assistant_memory
@@ -62,7 +62,7 @@ Farklı bir API şekli kullanıyorsanız yalnızca `callLocalAi()` gövdesini de
 | Yapılandırma | `src/config/local-stack.config.ts` | Tüm endpoint/env ayarları (tek yer) |
 | Backend giriş noktası | `src/routes/api/assistant.ts` | `POST /api/assistant` — tek REST ucu (`action` alanı ile) |
 | AI | `src/lib/backend/ai-provider.server.ts` | **AI çağrısı burada** |
-| TTS | `src/lib/backend/tts-provider.server.ts` | `synthesizeSpeech()`; yerel TTS yoksa tarayıcı sesi |
+| TTS | `src/lib/backend/tts-provider.server.ts` | `synthesizeSpeech()` → yalnızca yerel sunucu (ücretli sağlayıcı yok) |
 | Hafıza | `src/lib/backend/memory-store.server.ts` | Kısa/uzun süreli hafıza iskeleti + Chroma bağlantı noktası |
 | Frontend istemci | `src/lib/assistant-client.ts` | `/api/assistant` sarmalayıcısı, TTS oynatma |
 
@@ -71,7 +71,7 @@ Farklı bir API şekli kullanıyorsanız yalnızca `callLocalAi()` gövdesini de
 ```
 POST /api/assistant
 { "action": "chat", "messages": [...], "language": "tr", "useShortTerm": false, "useLongTerm": true, "attachments": [...] }
-{ "action": "tts", "text": "...", "language": "tr" }        // audio veya { fallback: true }
+{ "action": "tts", "text": "...", "language": "tr" }        // audio/* , { audio: base64 } veya { fallback: true }
 { "action": "memory.list" }
 { "action": "memory.upsert", "record": { ... } }
 { "action": "memory.delete", "id": "..." }
@@ -96,65 +96,88 @@ POST /api/assistant
 
 ## TTS Entegrasyon Rehberi (TTS Integration Guide)
 
-### Hangi motor kullaniliyor? / Which engine is used?
+### Kural: ucretli/tokene bagli hicbir saglayici yok
 
-Tarayici içi `SpeechSynthesis` **tamamen kaldirildi**. Artik gercek noral TTS
-kullaniliyor ve motor `.env` uzerinden secilebiliyor:
+Bu projede **ucretli veya token bazli hicbir TTS servisi kullanilmaz.**
+Lovable AI Gateway (`openai/gpt-4o-mini-tts`), ElevenLabs, Azure ve Google
+entegrasyonlari **tamamen kaldirildi**. Tek hedef motor, sizin kendi
+bilgisayarinizda calisan yerel TTS sunucunuzdur.
 
 ```
-TTS_PROVIDER=lovable        # lovable | elevenlabs | azure | google | local
+LOCAL_TTS_URL=http://localhost:8880/synthesize   # varsayilan
+LOCAL_TTS_TIMEOUT_MS=8000                        # opsiyonel
 ```
-
-| Deger | Motor | Gerekli .env |
-| --- | --- | --- |
-| `lovable` (varsayilan) | Lovable AI Gateway noral TTS (`openai/gpt-4o-mini-tts`) | yok — `LOVABLE_API_KEY` otomatik saglanir |
-| `elevenlabs` | ElevenLabs (`eleven_multilingual_v2`, Turkce dogal) | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` |
-| `azure` | Azure Neural TTS | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` |
-| `google` | Google Cloud Text-to-Speech | `GOOGLE_TTS_API_KEY` |
-| `local` | **Sizin kendi motorunuz** | `LOCAL_TTS_URL` |
-
-Ses/model ince ayarlari: `TTS_MODEL`, `TTS_VOICE`, `AZURE_VOICE_TR/EN`,
-`GOOGLE_VOICE_TR/EN`, `ELEVENLABS_MODEL`.
 
 ### Ses üretimi NEREDE yapılıyor? / Where is speech generated?
 
 Tum kod tabaninda TTS'e giden **tek** nokta:
 
 - **Dosya:** `src/lib/backend/tts-provider.server.ts`
-- **Merkezi fonksiyon:** `synthesizeSpeech()` — motoru `TTS_PROVIDER`'a gore secer
-- Motor bazli fonksiyonlar: `callLovableTts()`, `callElevenLabsTts()`,
-  `callAzureTts()`, `callGoogleTts()`, `callLocalTts()`
+- **Merkezi fonksiyon:** `synthesizeSpeech()`
+- **Degistireceginiz fonksiyon:** `callLocalTts()` — istek/yanit sekli burada
 
-### KENDI MOTORUNUZU BAGLAMAK (2 adim)
+Kendi API sekliniz farkliysa (govde alanlari, header'lar, GET/POST) **sadece**
+`callLocalTts()` govdesini degistirin. Baska hicbir dosyaya dokunmaniz gerekmez.
 
-1. `.env` dosyasina:
-   ```
-   TTS_PROVIDER=local
-   LOCAL_TTS_URL=http://localhost:5002/api/tts
-   ```
-2. Gerekirse **sadece** `src/lib/backend/tts-provider.server.ts` icindeki
-   `callLocalTts()` fonksiyonunun govdesini kendi API sekline (govde alanlari,
-   header'lar, GET/POST) gore degistirin. Baska hicbir dosyaya dokunmayin.
+### Yerel sunucunuzun uygulamasi gereken sozlesme
 
-### Desteklenen yanıt biçimleri
+**Istek**
 
-`callLocalTts()` (ve diger motorlar) iki bicimden birini dondurebilir:
+```
+POST http://localhost:8880/synthesize
+Content-Type: application/json
 
-| Motorunuz ne döndürüyorsa | Dönüş değeri | İstemcide |
-| --- | --- | --- |
-| Ham ses (wav/mp3/ogg, binary/stream) | `{ audio: ArrayBuffer, contentType }` | blob olarak çalınır |
-| JSON + base64 (`{ audio: "UklGR..." }`) | `{ base64: string, contentType }` | base64 olarak çalınır |
+{ "text": "okunacak metin", "language": "tr" }     // language: "tr" | "en"
+```
 
-Motor hata verirse exception firlatilir; artik sessizce tarayici sesine
-dusulmez (fallback yok).
+**Yanit A — onerilen: ham ses baytlari**
+
+```
+200 OK
+Content-Type: audio/wav        # audio/mpeg veya audio/ogg de olur
+<binary audio>
+```
+
+**Yanit B — JSON + base64**
+
+```
+200 OK
+Content-Type: application/json
+
+{ "audio": "<base64>", "contentType": "audio/wav" }
+```
+
+`audio` yerine `audio_base64` veya `data` alan adlari da kabul edilir.
+`contentType` verilmezse `audio/wav` varsayilir.
+
+**Hata**
+
+```
+4xx / 5xx + kisa metin govdesi
+```
+
+**Onerilen ses formati:** 16-bit PCM WAV, 22050 Hz veya 24000 Hz, **mono**.
+(mp3/ogg da calisir; WAV en hizli decode edilir.)
+
+### GECICI onizleme yedegi (gercek sistemde kullanilmaz)
+
+Yerel sunucu henuz ayakta degilse backend hata firlatmak yerine
+`{ fallback: true }` doner ve arayuz **sessizce** tarayici ici
+`SpeechSynthesis` ile okur:
+
+- **Dosya:** `src/lib/assistant-client.ts` → `previewFallbackSpeak()`
+- Bu yol **yalnizca gelistirme/onizleme** icindir; robotik ses beklenir.
+- Yerel motorunuz baglandigi anda bu yol hic cagrilmaz ve fonksiyon
+  guvenle silinebilir. Uretim/gercek sistemde kullanilmaz.
 
 ### Akış (data flow)
 
 ```text
 Arayüz  →  speak()                       src/lib/assistant-client.ts
         →  POST /api/assistant {action:"tts"}   src/routes/api/assistant.ts
-        →  synthesizeSpeech()                   src/lib/backend/tts-provider.server.ts
+        →  synthesizeSpeech() → callLocalTts()  src/lib/backend/tts-provider.server.ts
         →  playAudioSource()                    src/lib/audio-player.ts
+        (sunucu kapali ise: previewFallbackSpeak() — gecici)
 ```
 
 ### Genel ses oynatıcı
@@ -162,14 +185,15 @@ Arayüz  →  speak()                       src/lib/assistant-client.ts
 - **Dosya:** `src/lib/audio-player.ts`
 - `playAudioSource(source, { onLevels, onEnded })` — `Blob`, `ArrayBuffer`,
   base64/data-URL string veya `Response` (stream) kabul eder. Hicbir TTS
-  motoruna bagli degildir; ileride kendi motorunuzun sesini de ayni sekilde calar.
+  motoruna bagli degildir.
 
 ### Gerçek sese senkron dalga animasyonu
 
 `playAudioSource()` Web Audio API'nin **AnalyserNode**'unu kullanir; her
 animasyon karesinde 9 frekans bandinin gercek genligini `0..1` araliginda
 `onLevels` ile yayar. `src/components/assistant/VoiceWave.tsx` bu degerleri
-dogrudan cubuk yuksekligine ve avatar parıltısına uygular.
+dogrudan cubuk yuksekligine ve avatar parıltısına uygular. (Gecici tarayici
+yedeginde gercek genlik olmadigi icin dusuk yogunluklu bir gosterge kullanilir.)
 
 ---
 
