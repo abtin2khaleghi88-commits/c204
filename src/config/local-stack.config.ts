@@ -12,17 +12,9 @@
  *   LOCAL_AI_CHAT_PATH=/api/chat
  *   LOCAL_AI_MODEL=llama3.1
  *
- *   # --- TTS (motor secimi) ---
- *   TTS_PROVIDER=lovable            # lovable | elevenlabs | azure | google | local
- *   TTS_MODEL=openai/gpt-4o-mini-tts
- *   TTS_VOICE=alloy
- *   ELEVENLABS_API_KEY=...          # TTS_PROVIDER=elevenlabs
- *   ELEVENLABS_VOICE_ID=EXAVITQu4vr4xnSDxMaL
- *   ELEVENLABS_MODEL=eleven_multilingual_v2
- *   AZURE_SPEECH_KEY=...            # TTS_PROVIDER=azure
- *   AZURE_SPEECH_REGION=westeurope
- *   GOOGLE_TTS_API_KEY=...          # TTS_PROVIDER=google
- *   LOCAL_TTS_URL=http://localhost:5002/api/tts   # TTS_PROVIDER=local
+ *   # --- TTS (SADECE yerel sunucu; ucretli saglayici YOK) ---
+ *   LOCAL_TTS_URL=http://localhost:8880/synthesize
+ *   LOCAL_TTS_TIMEOUT_MS=8000
  *
  *   # --- Hafiza ---
  *   LOCAL_MEMORY_BASE_URL=http://localhost:8000  # Chroma
