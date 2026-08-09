@@ -63,7 +63,6 @@ export function getLocalStackConfig(): LocalStackConfig {
 
   const aiBaseUrl = env("LOCAL_AI_BASE_URL");
   const memoryBaseUrl = env("LOCAL_MEMORY_BASE_URL");
-  const provider = (env("TTS_PROVIDER") || "lovable") as TtsProvider;
 
   return {
     ai: {
@@ -73,29 +72,9 @@ export function getLocalStackConfig(): LocalStackConfig {
       enabled: Boolean(aiBaseUrl),
     },
     tts: {
-      provider,
-      lovable: {
-        apiKey: env("LOVABLE_API_KEY"),
-        model: env("TTS_MODEL") || "openai/gpt-4o-mini-tts",
-        voice: env("TTS_VOICE") || "alloy",
-      },
-      elevenlabs: {
-        apiKey: env("ELEVENLABS_API_KEY"),
-        voiceId: env("ELEVENLABS_VOICE_ID") || "EXAVITQu4vr4xnSDxMaL",
-        model: env("ELEVENLABS_MODEL") || "eleven_multilingual_v2",
-      },
-      azure: {
-        apiKey: env("AZURE_SPEECH_KEY"),
-        region: env("AZURE_SPEECH_REGION") || "westeurope",
-        voiceTr: env("AZURE_VOICE_TR") || "tr-TR-EmelNeural",
-        voiceEn: env("AZURE_VOICE_EN") || "en-US-JennyNeural",
-      },
-      google: {
-        apiKey: env("GOOGLE_TTS_API_KEY"),
-        voiceTr: env("GOOGLE_VOICE_TR") || "tr-TR-Wavenet-D",
-        voiceEn: env("GOOGLE_VOICE_EN") || "en-US-Neural2-F",
-      },
-      local: { url: env("LOCAL_TTS_URL") },
+      provider: "local",
+      url: env("LOCAL_TTS_URL") || "http://localhost:8880/synthesize",
+      timeoutMs: Number(env("LOCAL_TTS_TIMEOUT_MS") || 8000),
     },
     memory: {
       baseUrl: memoryBaseUrl || "http://localhost:8000",
