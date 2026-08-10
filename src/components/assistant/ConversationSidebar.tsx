@@ -27,14 +27,14 @@ export function ConversationSidebar({
   onOpenSettings,
 }: Props) {
   return (
-    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl">
       <div className="flex items-center gap-2 px-4 py-4">
-        <span className="gradient-hero flex h-8 w-8 items-center justify-center rounded-xl text-xs font-bold text-primary-foreground">
-          YA
+        <span className="glow-ring flex h-8 w-8 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 font-mono text-[10px] font-bold tracking-widest text-primary">
+          C2
         </span>
         <div className="leading-tight">
-          <p className="text-sm font-semibold text-sidebar-foreground">{t(language, "appName")}</p>
-          <p className="text-[11px] text-muted-foreground">offline · local</p>
+          <p className="hud-title text-sm font-semibold text-sidebar-foreground">{t(language, "appName")}</p>
+          <p className="hud-text text-[10px] text-primary/70">offline · local</p>
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export function ConversationSidebar({
         </Button>
       </div>
 
-      <p className="px-4 pt-5 pb-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+      <p className="hud-text px-4 pt-5 pb-2 text-[10px] font-semibold text-muted-foreground">
         {t(language, "conversations")}
       </p>
 
@@ -56,9 +56,9 @@ export function ConversationSidebar({
             <div
               key={conversation.id}
               className={
-                "group flex items-start gap-2 rounded-xl border px-3 py-2.5 transition-colors " +
+                "group flex items-start gap-2 rounded-lg border px-3 py-2.5 backdrop-blur-sm transition-colors " +
                 (isActive
-                  ? "border-primary/30 bg-sidebar-accent"
+                  ? "border-primary/50 bg-sidebar-accent glow-ring"
                   : "border-transparent hover:bg-sidebar-accent/60")
               }
             >

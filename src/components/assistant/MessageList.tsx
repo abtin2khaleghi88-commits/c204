@@ -1,7 +1,7 @@
 import { FileText, Volume2, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { AssistantOrb, VoiceWave } from "@/components/assistant/VoiceWave";
+import { AssistantOrb, PulseRing, VoiceWave } from "@/components/assistant/VoiceWave";
 import type { Language, UiMessage } from "@/lib/assistant-client";
 import { t } from "@/lib/i18n";
 
@@ -29,8 +29,8 @@ export function MessageList({
   if (messages.length === 0 && !thinking) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <AssistantOrb speaking={false} />
-        <h1 className="mt-5 text-2xl font-semibold tracking-tight">
+        <PulseRing active={false} size={240} />
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight">
           {t(language, "emptyTitle")}
         </h1>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
@@ -47,7 +47,7 @@ export function MessageList({
           message.role === "user" ? (
             <div key={message.id} className="animate-rise-in flex justify-end">
               <div className="max-w-[80%] space-y-2">
-                <div className="rounded-3xl rounded-br-md bg-primary px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-primary-foreground">
+                <div className="rounded-2xl rounded-br-sm border border-primary/40 bg-primary/15 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
                   {message.content}
                 </div>
                 {message.attachments?.length ? (
@@ -55,7 +55,7 @@ export function MessageList({
                     {message.attachments.map((file) => (
                       <span
                         key={file.name}
-                        className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[11px] text-secondary-foreground"
+                        className="hud-text flex items-center gap-1 rounded-full border border-border bg-secondary/60 px-2.5 py-1 text-[10px] text-secondary-foreground"
                       >
                         <FileText className="h-3 w-3" />
                         {file.name}
@@ -103,13 +103,13 @@ export function MessageList({
 
         {/* Hafiza taramasi gostergesi - %50 opaklik, dikkat cekmeyen */}
         {memoryScanning && (
-          <p className="text-xs opacity-50">{t(language, "scanning")}</p>
+          <p className="hud-text text-[10px] opacity-50">{t(language, "scanning")}</p>
         )}
 
         {thinking && (
           <div className="flex gap-3">
             <AssistantOrb speaking />
-            <p className="text-shimmer text-sm font-medium">{t(language, "thinking")}</p>
+            <p className="text-shimmer hud-text text-xs font-medium">{t(language, "thinking")}</p>
           </div>
         )}
       </div>

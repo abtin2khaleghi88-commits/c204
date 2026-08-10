@@ -36,17 +36,17 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Yerel AI Asistan · Offline Sohbet Arayüzü" },
+      { title: "C204 · Yerel AI Asistan Arayüzü" },
       {
         name: "description",
         content:
-          "Tamamen yerel çalışan AI + TTS sohbet arayüzü: dosya paylaşımı, Türkçe/İngilizce dil desteği ve hafıza yönetimi paneli.",
+          "C204: tamamen yerel çalışan AI + TTS sohbet arayüzü: dosya paylaşımı, Türkçe/İngilizce dil desteği ve hafıza yönetimi paneli.",
       },
-      { property: "og:title", content: "Yerel AI Asistan · Offline Sohbet Arayüzü" },
+      { property: "og:title", content: "C204 · Yerel AI Asistan Arayüzü" },
       {
         property: "og:description",
         content:
-          "Yerel AI sunucunuza bağlanan, sesli yanıt veren ve hafıza yönetimi sunan sohbet arayüzü.",
+          "C204, yerel AI sunucunuza bağlanan, sesli yanıt veren ve hafıza yönetimi sunan sohbet arayüzü.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -231,12 +231,12 @@ function AssistantPage() {
       />
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border px-6 py-3">
-          <h2 className="truncate text-sm font-medium">
+        <header className="flex items-center justify-between border-b border-border bg-card/40 px-6 py-3 backdrop-blur-xl">
+          <h2 className="hud-title truncate text-xs font-medium">
             {active?.title ?? t(language, "newChat")}
           </h2>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-medium text-secondary-foreground">
+            <span className="hud-text rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-medium text-primary">
               {language === "tr" ? "Türkçe" : "English"}
             </span>
             <Button

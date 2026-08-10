@@ -2,7 +2,7 @@ import type { Language } from "@/lib/assistant-client";
 
 const dict = {
   tr: {
-    appName: "Yerel Asistan",
+    appName: "C204",
     newChat: "Yeni sohbet",
     conversations: "Konusmalar",
     placeholder: "Bir mesaj yazin...",
@@ -20,8 +20,8 @@ const dict = {
     speaking: "Sesli yanit calisiyor",
     tts: "Sesli yanit (TTS)",
     autoSpeak: "Yanitlari otomatik oku",
-    emptyTitle: "Bugun nasil yardimci olabilirim?",
-    emptySubtitle: "Tamamen yerel calisan asistaniniz. Yazin, dosya ekleyin, dinleyin.",
+    emptyTitle: "C204 hazir",
+    emptySubtitle: "C204 cevrimdisi ve tamamen yerel calisir. Yazin, dosya ekleyin, dinleyin.",
     delete: "Sil",
     edit: "Duzenle",
     save: "Kaydet",
@@ -44,7 +44,7 @@ const dict = {
     ttsError: "Ses uretilemedi. TTS ayarlarini kontrol edin.",
   },
   en: {
-    appName: "Local Assistant",
+    appName: "C204",
     newChat: "New chat",
     conversations: "Conversations",
     placeholder: "Write a message...",
@@ -62,8 +62,8 @@ const dict = {
     speaking: "Speaking",
     tts: "Spoken reply (TTS)",
     autoSpeak: "Read replies aloud",
-    emptyTitle: "How can I help today?",
-    emptySubtitle: "Your fully local assistant. Type, attach files, listen.",
+    emptyTitle: "C204 online",
+    emptySubtitle: "C204 runs fully offline and local. Type, attach files, listen.",
     delete: "Delete",
     edit: "Edit",
     save: "Save",
