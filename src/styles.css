@@ -154,10 +154,28 @@
     border-color: var(--color-border);
   }
 
+  html {
+    /* Ölçekleme: monospace gövde metni sans-serif'ten optik olarak büyük göründüğü
+       için taban boyutu hafifçe küçültülüp satır yüksekliği dengelendi. */
+    font-size: 15px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  @media (min-width: 1280px) {
+    html {
+      font-size: 16px;
+    }
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: var(--font-sans);
+    /* Tutarlı futuristik monospace gövde tipografisi */
+    font-family: var(--font-mono);
+    font-variant-ligatures: none;
+    font-feature-settings: "kern" 1;
+    letter-spacing: 0.005em;
+    line-height: 1.6;
     background-image:
       linear-gradient(var(--grid-line) 1px, transparent 1px),
       linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
@@ -168,9 +186,27 @@
 
   h1,
   h2,
-  h3 {
+  h3,
+  h4 {
     font-family: var(--font-display);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: clamp(1.4rem, 1.1rem + 1.4vw, 2rem);
+  }
+
+  h2 {
+    font-size: clamp(1.15rem, 1rem + 0.8vw, 1.5rem);
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: var(--font-mono);
   }
 }
 
@@ -203,13 +239,13 @@
 /** Sistem metinleri için monospace HUD tipografisi */
 @utility hud-text {
   font-family: var(--font-mono);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 @utility hud-title {
   font-family: var(--font-display);
-  letter-spacing: 0.18em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
