@@ -8,9 +8,10 @@ export type ThemeMode = "light" | "dark" | "system";
 const STORAGE_KEY = "local-assistant.theme";
 
 export function loadTheme(): ThemeMode {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "dark";
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  return raw === "light" || raw === "dark" || raw === "system" ? raw : "system";
+  // C204 HUD temasi koyu modda tasarlandi: varsayilan "dark".
+  return raw === "light" || raw === "dark" || raw === "system" ? raw : "dark";
 }
 
 export function saveTheme(mode: ThemeMode) {
