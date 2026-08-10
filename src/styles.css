@@ -6,20 +6,16 @@
 
 
 /*
- * Design system definition.
+ * Design system definition — "C204 HUD" teması.
  *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * Koyu, camsı (glass) HUD paneller + turkuaz/camgöbeği vurgular.
+ * Tüm renkler oklch. Yeni renk eklerken :root + .dark + @theme inline güncellenir.
  */
 
 @theme inline {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Orbitron", "JetBrains Mono", ui-monospace, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -62,88 +58,95 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ---------- Light: soğuk, camgöbeği vurgulu açık HUD ---------- */
 :root {
-  --radius: 0.9rem;
-  --background: oklch(0.985 0.012 240);
-  --foreground: oklch(0.24 0.05 258);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.05 258);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.05 258);
-  --primary: oklch(0.56 0.19 259);
-  --primary-foreground: oklch(0.99 0.005 250);
-  --secondary: oklch(0.945 0.03 246);
-  --secondary-foreground: oklch(0.34 0.09 259);
-  --muted: oklch(0.955 0.022 246);
-  --muted-foreground: oklch(0.53 0.045 254);
-  --accent: oklch(0.9 0.06 226);
-  --accent-foreground: oklch(0.3 0.09 250);
-  --destructive: oklch(0.58 0.22 20);
-  --destructive-foreground: oklch(0.99 0.005 250);
-  --border: oklch(0.9 0.03 246);
-  --input: oklch(0.9 0.03 246);
-  --ring: oklch(0.62 0.16 258);
-  --chart-1: oklch(0.56 0.19 259);
-  --chart-2: oklch(0.66 0.14 222);
-  --chart-3: oklch(0.72 0.12 195);
-  --chart-4: oklch(0.5 0.17 275);
-  --chart-5: oklch(0.78 0.1 240);
-  --sidebar: oklch(0.965 0.02 248);
-  --sidebar-foreground: oklch(0.28 0.06 258);
-  --sidebar-primary: oklch(0.56 0.19 259);
-  --sidebar-primary-foreground: oklch(0.99 0.005 250);
-  --sidebar-accent: oklch(0.92 0.045 244);
-  --sidebar-accent-foreground: oklch(0.3 0.08 256);
-  --sidebar-border: oklch(0.9 0.03 246);
-  --sidebar-ring: oklch(0.62 0.16 258);
+  --radius: 0.75rem;
+  --background: oklch(0.975 0.014 205);
+  --foreground: oklch(0.26 0.045 220);
+  --card: oklch(0.995 0.006 205);
+  --card-foreground: oklch(0.26 0.045 220);
+  --popover: oklch(0.995 0.006 205);
+  --popover-foreground: oklch(0.26 0.045 220);
+  --primary: oklch(0.62 0.13 205);
+  --primary-foreground: oklch(0.99 0.005 205);
+  --secondary: oklch(0.935 0.03 202);
+  --secondary-foreground: oklch(0.33 0.06 215);
+  --muted: oklch(0.945 0.024 204);
+  --muted-foreground: oklch(0.53 0.045 213);
+  --accent: oklch(0.9 0.06 195);
+  --accent-foreground: oklch(0.3 0.07 215);
+  --destructive: oklch(0.58 0.2 22);
+  --destructive-foreground: oklch(0.99 0.005 205);
+  --border: oklch(0.89 0.03 203);
+  --input: oklch(0.89 0.03 203);
+  --ring: oklch(0.66 0.13 200);
+  --chart-1: oklch(0.66 0.13 200);
+  --chart-2: oklch(0.72 0.12 188);
+  --chart-3: oklch(0.6 0.12 215);
+  --chart-4: oklch(0.78 0.1 178);
+  --chart-5: oklch(0.5 0.11 225);
+  --sidebar: oklch(0.955 0.02 204);
+  --sidebar-foreground: oklch(0.28 0.05 218);
+  --sidebar-primary: oklch(0.62 0.13 205);
+  --sidebar-primary-foreground: oklch(0.99 0.005 205);
+  --sidebar-accent: oklch(0.91 0.045 200);
+  --sidebar-accent-foreground: oklch(0.3 0.06 216);
+  --sidebar-border: oklch(0.89 0.03 203);
+  --sidebar-ring: oklch(0.66 0.13 200);
 
-  /* Design system extras */
-  --gradient-hero: linear-gradient(135deg, oklch(0.56 0.19 259), oklch(0.7 0.14 210));
-  --gradient-surface: linear-gradient(180deg, oklch(0.985 0.015 244), oklch(0.96 0.03 240));
-  --shadow-glow: 0 0 0 1px oklch(0.56 0.19 259 / 0.14), 0 18px 40px -18px oklch(0.56 0.19 259 / 0.5);
-  --shadow-card: 0 1px 2px oklch(0.24 0.05 258 / 0.06), 0 12px 30px -18px oklch(0.24 0.05 258 / 0.25);
+  --gradient-hero: linear-gradient(135deg, oklch(0.66 0.13 200), oklch(0.74 0.11 178));
+  --gradient-surface: linear-gradient(180deg, oklch(0.985 0.012 204), oklch(0.95 0.026 200));
+  --grid-line: oklch(0.62 0.13 205 / 0.07);
+  --shadow-glow: 0 0 0 1px oklch(0.62 0.13 205 / 0.16), 0 18px 40px -18px oklch(0.62 0.13 205 / 0.4);
+  --shadow-card: 0 1px 2px oklch(0.26 0.045 220 / 0.06), 0 12px 30px -18px oklch(0.26 0.045 220 / 0.22);
 }
 
 
+/* ---------- Dark: referans görseldeki derin HUD ---------- */
 .dark {
-  --background: oklch(0.19 0.035 258);
-  --foreground: oklch(0.93 0.015 250);
-  --card: oklch(0.235 0.038 259);
-  --card-foreground: oklch(0.93 0.015 250);
-  --popover: oklch(0.235 0.038 259);
-  --popover-foreground: oklch(0.93 0.015 250);
-  --primary: oklch(0.66 0.15 258);
-  --primary-foreground: oklch(0.16 0.03 258);
-  --secondary: oklch(0.28 0.04 258);
-  --secondary-foreground: oklch(0.9 0.02 250);
-  --muted: oklch(0.27 0.035 258);
-  --muted-foreground: oklch(0.7 0.03 252);
-  --accent: oklch(0.33 0.055 250);
-  --accent-foreground: oklch(0.92 0.02 250);
-  --destructive: oklch(0.6 0.17 22);
-  --destructive-foreground: oklch(0.96 0.01 250);
-  --border: oklch(0.32 0.035 258);
-  --input: oklch(0.32 0.035 258);
-  --ring: oklch(0.62 0.13 258);
-  --chart-1: oklch(0.66 0.15 258);
-  --chart-2: oklch(0.7 0.12 222);
-  --chart-3: oklch(0.75 0.1 195);
-  --chart-4: oklch(0.58 0.15 275);
-  --chart-5: oklch(0.8 0.08 240);
-  --sidebar: oklch(0.22 0.036 259);
-  --sidebar-foreground: oklch(0.9 0.02 250);
-  --sidebar-primary: oklch(0.66 0.15 258);
-  --sidebar-primary-foreground: oklch(0.16 0.03 258);
-  --sidebar-accent: oklch(0.3 0.045 254);
-  --sidebar-accent-foreground: oklch(0.92 0.02 250);
-  --sidebar-border: oklch(0.3 0.033 258);
-  --sidebar-ring: oklch(0.62 0.13 258);
+  --background: oklch(0.16 0.028 220);
+  --foreground: oklch(0.93 0.02 195);
+  --card: oklch(0.2 0.032 220 / 0.72);
+  --card-foreground: oklch(0.93 0.02 195);
+  --popover: oklch(0.19 0.03 220);
+  --popover-foreground: oklch(0.93 0.02 195);
+  --primary: oklch(0.8 0.13 190);
+  --primary-foreground: oklch(0.15 0.03 220);
+  --secondary: oklch(0.25 0.035 214);
+  --secondary-foreground: oklch(0.9 0.025 195);
+  --muted: oklch(0.24 0.03 216);
+  --muted-foreground: oklch(0.72 0.04 196);
+  --accent: oklch(0.29 0.05 200);
+  --accent-foreground: oklch(0.92 0.03 192);
+  --destructive: oklch(0.62 0.17 22);
+  --destructive-foreground: oklch(0.96 0.01 200);
+  --border: oklch(0.42 0.06 197 / 0.35);
+  --input: oklch(0.42 0.06 197 / 0.35);
+  --ring: oklch(0.8 0.13 190);
+  --chart-1: oklch(0.8 0.13 190);
+  --chart-2: oklch(0.74 0.12 178);
+  --chart-3: oklch(0.68 0.11 210);
+  --chart-4: oklch(0.85 0.1 172);
+  --chart-5: oklch(0.58 0.1 225);
+  --sidebar: oklch(0.175 0.03 221);
+  --sidebar-foreground: oklch(0.9 0.025 195);
+  --sidebar-primary: oklch(0.8 0.13 190);
+  --sidebar-primary-foreground: oklch(0.15 0.03 220);
+  --sidebar-accent: oklch(0.26 0.045 203);
+  --sidebar-accent-foreground: oklch(0.93 0.03 192);
+  --sidebar-border: oklch(0.42 0.06 197 / 0.3);
+  --sidebar-ring: oklch(0.8 0.13 190);
 
-  /* Design system extras (dark) */
-  --gradient-hero: linear-gradient(135deg, oklch(0.6 0.16 259), oklch(0.66 0.12 212));
-  --gradient-surface: linear-gradient(180deg, oklch(0.2 0.035 258), oklch(0.17 0.03 260));
-  --shadow-glow: 0 0 0 1px oklch(0.7 0.14 258 / 0.22), 0 18px 40px -18px oklch(0.6 0.16 259 / 0.55);
-  --shadow-card: 0 1px 2px oklch(0.1 0.02 258 / 0.5), 0 12px 30px -18px oklch(0.05 0.02 258 / 0.7);
+  --gradient-hero: linear-gradient(135deg, oklch(0.8 0.13 190), oklch(0.62 0.12 212));
+  --gradient-surface: radial-gradient(
+      1200px 600px at 50% -10%,
+      oklch(0.3 0.06 198 / 0.35),
+      transparent 70%
+    ),
+    linear-gradient(180deg, oklch(0.17 0.03 221), oklch(0.14 0.026 224));
+  --grid-line: oklch(0.8 0.13 190 / 0.05);
+  --shadow-glow: 0 0 0 1px oklch(0.8 0.13 190 / 0.28), 0 0 32px -6px oklch(0.8 0.13 190 / 0.35);
+  --shadow-card: 0 1px 0 oklch(0.8 0.13 190 / 0.08) inset, 0 14px 34px -20px oklch(0.05 0.02 220 / 0.9);
 }
 
 @layer base {
@@ -154,8 +157,20 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    background-image: var(--gradient-surface);
+    font-family: var(--font-sans);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+      var(--gradient-surface);
+    background-size: 44px 44px, 44px 44px, auto;
     background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
   }
 }
 
@@ -165,6 +180,7 @@
   background-color: var(--color-card);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--color-border);
+  backdrop-filter: blur(10px);
 }
 
 @utility gradient-hero {
@@ -173,6 +189,28 @@
 
 @utility glow-ring {
   box-shadow: var(--shadow-glow);
+}
+
+/** HUD paneli: camsı yüzey + köşe vurgulu ince kenarlık */
+@utility hud-panel {
+  position: relative;
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(10px);
+}
+
+/** Sistem metinleri için monospace HUD tipografisi */
+@utility hud-text {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@utility hud-title {
+  font-family: var(--font-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 /* ---------- Speaking / thinking animations ---------- */
@@ -221,6 +259,28 @@
   }
 }
 
+/* Bosta bekleme: yavas "nefes alma" */
+@keyframes hud-breathe {
+  0%,
+  100% {
+    transform: scale(0.985);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.015);
+    opacity: 0.85;
+  }
+}
+
+@keyframes hud-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @utility animate-wave-bar {
   animation: wave-bar 1s ease-in-out infinite;
 }
@@ -231,6 +291,18 @@
 
 @utility animate-rise-in {
   animation: rise-in 0.32s ease-out both;
+}
+
+@utility animate-hud-breathe {
+  animation: hud-breathe 4.2s ease-in-out infinite;
+}
+
+@utility animate-hud-spin {
+  animation: hud-spin 18s linear infinite;
+}
+
+@utility animate-hud-spin-reverse {
+  animation: hud-spin 26s linear infinite reverse;
 }
 
 @utility text-shimmer {
@@ -246,4 +318,3 @@
   color: transparent;
   animation: shimmer-sweep 2.2s linear infinite;
 }
-
