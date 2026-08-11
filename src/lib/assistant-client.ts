@@ -13,7 +13,12 @@ export type UiMessage = {
   role: "user" | "assistant";
   content: string;
   createdAt: string;
-  attachments?: { name: string; size: number }[];
+  attachments?: { name: string; size: number; type?: string; preview?: string }[];
+  /** Bu yanit uretilirken kullanilan hafiza kayitlari (skorlu) */
+  memoryHits?: MemoryHit[];
+  memoryScanned?: number;
+  memoryTookMs?: number;
+  source?: "local" | "mock";
 };
 
 export type MemoryRecord = {
