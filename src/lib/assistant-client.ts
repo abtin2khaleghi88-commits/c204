@@ -13,7 +13,12 @@ export type UiMessage = {
   role: "user" | "assistant";
   content: string;
   createdAt: string;
-  attachments?: { name: string; size: number }[];
+  attachments?: { name: string; size: number; type?: string; preview?: string }[];
+  /** Bu yanit uretilirken kullanilan hafiza kayitlari (skorlu) */
+  memoryHits?: MemoryHit[];
+  memoryScanned?: number;
+  memoryTookMs?: number;
+  source?: "local" | "mock";
 };
 
 export type MemoryRecord = {
@@ -21,9 +26,23 @@ export type MemoryRecord = {
   scope: "short" | "long";
   title: string;
   content: string;
+  category: string;
+  tags: string[];
   createdAt: string;
   approved: boolean;
 };
+
+export type MemoryHit = {
+  id: string;
+  title: string;
+  content: string;
+  scope: "short" | "long";
+  category: string;
+  /** 0..1 anlamsal alaka skoru */
+  score: number;
+};
+
+export type MemoryLink = { source: string; target: string; weight: number };
 
 const ENDPOINT = "/api/assistant";
 
@@ -37,21 +56,89 @@ async function post<T>(payload: Record<string, unknown>): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function sendChat(input: {
-  messages: { role: "user" | "assistant"; content: string }[];
-  language: Language;
-  useShortTerm: boolean;
-  useLongTerm: boolean;
-  attachments: { name: string; excerpt: string }[];
-}) {
-  return post<{ content: string; source: "local" | "mock"; usedMemory: boolean }>({
-    action: "chat",
-    ...input,
+/**
+ * AKAN SOHBET (SSE). Backend once hafiza isabetlerini, sonra metin parcalarini
+ * gonderir. Hafiza tarafi `retrieveMemory()` ile SADECE top-K kaydi kullanir.
+ */
+export async function streamChat(
+  input: {
+    messages: { role: "user" | "assistant"; content: string }[];
+    language: Language;
+    useShortTerm: boolean;
+    useLongTerm: boolean;
+    attachments: { name: string; excerpt: string }[];
+  },
+  handlers: {
+    onMemory?: (payload: { hits: MemoryHit[]; scanned: number; tookMs: number }) => void;
+    onDelta?: (text: string) => void;
+    onDone?: (payload: { source: "local" | "mock"; usedMemory: boolean }) => void;
+  },
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "chat", ...input }),
+    ...(signal ? { signal } : {}),
   });
+
+  if (!res.ok || !res.body) throw new Error(`Chat failed (${res.status})`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split("\n\n");
+    buffer = frames.pop() ?? "";
+    for (const frame of frames) {
+      const line = frame.replace(/^data:\s*/m, "").trim();
+      if (!line) continue;
+      try {
+        const event = JSON.parse(line) as {
+          type: string;
+          hits?: MemoryHit[];
+          scanned?: number;
+          tookMs?: number;
+          text?: string;
+          source?: "local" | "mock";
+          usedMemory?: boolean;
+          message?: string;
+        };
+        if (event.type === "memory") {
+          handlers.onMemory?.({
+            hits: event.hits ?? [],
+            scanned: event.scanned ?? 0,
+            tookMs: event.tookMs ?? 0,
+          });
+        } else if (event.type === "delta" && event.text) {
+          handlers.onDelta?.(event.text);
+        } else if (event.type === "done") {
+          handlers.onDone?.({
+            source: event.source ?? "mock",
+            usedMemory: Boolean(event.usedMemory),
+          });
+        } else if (event.type === "error") {
+          throw new Error(event.message ?? "stream error");
+        }
+      } catch {
+        /* kismi frame - yoksay */
+      }
+    }
+  }
 }
 
 export function listMemories() {
-  return post<{ records: MemoryRecord[] }>({ action: "memory.list" });
+  return post<{ records: MemoryRecord[]; links: MemoryLink[]; categories: string[] }>({
+    action: "memory.list",
+  });
+}
+
+export function searchMemories(query: string) {
+  return post<{ hits: MemoryHit[] }>({ action: "memory.search", query });
 }
 
 export function upsertMemory(record: Partial<MemoryRecord>) {
@@ -60,6 +147,14 @@ export function upsertMemory(record: Partial<MemoryRecord>) {
 
 export function deleteMemory(id: string) {
   return post<{ ok: boolean }>({ action: "memory.delete", id });
+}
+
+export function deleteMemories(ids: string[]) {
+  return post<{ removed: number }>({ action: "memory.deleteMany", ids });
+}
+
+export function rememberSummary(summary: string) {
+  return post<{ record: MemoryRecord }>({ action: "memory.summarize", summary });
 }
 
 /**

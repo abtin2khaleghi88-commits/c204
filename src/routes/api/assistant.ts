@@ -5,16 +5,18 @@
  * Frontend'in konustugu TEK REST ucu: POST /api/assistant
  * Govdede `action` alani ile islem secilir:
  *
- *   { action: "chat",          messages, language, useShortTerm, useLongTerm, attachments }
- *   { action: "tts",           text, language }              -> audio/* veya { audio: base64 }
- *   { action: "memory.list"    }
- *   { action: "memory.upsert", record }
- *   { action: "memory.delete", id }
+ *   { action: "chat",           ... }  -> SSE akisi (memory -> delta -> done)
+ *   { action: "tts",            text, language }
+ *   { action: "memory.list"     }      -> { records, links, categories }
+ *   { action: "memory.upsert",  record }
+ *   { action: "memory.delete",  id }
+ *   { action: "memory.deleteMany", ids }
+ *   { action: "memory.search",  query }   -> sadece top-K alakali kayit
  *
- * AI / TTS / hafiza baglantilari bu dosyada DEGIL, su modullerde:
- *   src/lib/backend/ai-provider.server.ts     <- AI cagrisi
- *   src/lib/backend/tts-provider.server.ts    <- TTS cagrisi
- *   src/lib/backend/memory-store.server.ts    <- hafiza
+ * Entegrasyon noktalari:
+ *   src/lib/backend/ai-provider.server.ts     <- AI cagrisi (callLocalAi / stream)
+ *   src/lib/backend/tts-provider.server.ts    <- TTS cagrisi (synthesizeSpeech)
+ *   src/lib/backend/memory-store.server.ts    <- hafiza (retrieveMemory)
  *   src/config/local-stack.config.ts          <- tum endpoint/env ayarlari
  * ============================================================================
  */
@@ -31,13 +33,15 @@ export const Route = createFileRoute("/api/assistant")({
         const action = String(body["action"] ?? "");
         const language = body["language"] === "en" ? "en" : "tr";
 
-        const { generateAssistantReply } = await import("@/lib/backend/ai-provider.server");
-        const { synthesizeSpeech } = await import("@/lib/backend/tts-provider.server");
         const memory = await import("@/lib/backend/memory-store.server");
 
         try {
           switch (action) {
             case "chat": {
+              const { streamAssistantReply } = await import(
+                "@/lib/backend/ai-provider.server"
+              );
+
               const messages = Array.isArray(body["messages"])
                 ? (body["messages"] as { role: "user" | "assistant"; content: string }[])
                 : [];
@@ -48,30 +52,61 @@ export const Route = createFileRoute("/api/assistant")({
                 : [];
 
               const lastUser = [...messages].reverse().find((m) => m.role === "user");
-              const memoryContext =
+
+              // >>> HAFIZA: tek merkezi cagri, "tum metni oku" DEGIL top-K getir.
+              const retrieved =
                 useShortTerm || useLongTerm
-                  ? await memory.buildMemoryContext({
+                  ? await memory.retrieveMemory({
                       query: lastUser?.content ?? "",
                       useShortTerm,
                       useLongTerm,
                     })
-                  : "";
+                  : null;
 
-              const reply = await generateAssistantReply({
-                messages,
-                language,
-                memoryContext,
-                attachments,
+              const encoder = new TextEncoder();
+              const stream = new ReadableStream<Uint8Array>({
+                async start(controller) {
+                  const send = (payload: unknown) =>
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+
+                  send({
+                    type: "memory",
+                    hits: retrieved?.hits ?? [],
+                    scanned: retrieved?.scanned ?? 0,
+                    tookMs: retrieved?.tookMs ?? 0,
+                  });
+
+                  let source: "local" | "mock" = "mock";
+                  try {
+                    for await (const chunk of streamAssistantReply({
+                      messages,
+                      language,
+                      memoryContext: retrieved?.context ?? "",
+                      attachments,
+                    })) {
+                      if (chunk.delta) send({ type: "delta", text: chunk.delta });
+                      if (chunk.source) source = chunk.source;
+                    }
+                  } catch (error) {
+                    send({ type: "error", message: String(error) });
+                  }
+
+                  send({ type: "done", source, usedMemory: Boolean(retrieved?.context) });
+                  controller.close();
+                },
               });
 
-              return Response.json({
-                content: reply.content,
-                source: reply.source,
-                usedMemory: Boolean(memoryContext),
+              return new Response(stream, {
+                headers: {
+                  "Content-Type": "text/event-stream",
+                  "Cache-Control": "no-cache, no-transform",
+                  Connection: "keep-alive",
+                },
               });
             }
 
             case "tts": {
+              const { synthesizeSpeech } = await import("@/lib/backend/tts-provider.server");
               const text = String(body["text"] ?? "").slice(0, 4000);
               const result = await synthesizeSpeech({ text, language });
               // Yerel TTS sunucusu kapali -> istemci GECICI tarayici sesine duser.
@@ -87,9 +122,19 @@ export const Route = createFileRoute("/api/assistant")({
               });
             }
 
+            case "memory.list": {
+              const records = memory.listMemories();
+              return Response.json({
+                records,
+                links: memory.memoryGraphLinks(),
+                categories: [...new Set(records.map((record) => record.category))],
+              });
+            }
 
-            case "memory.list":
-              return Response.json({ records: memory.listMemories() });
+            case "memory.search": {
+              const hits = await memory.searchLongTermMemory(String(body["query"] ?? ""));
+              return Response.json({ hits });
+            }
 
             case "memory.upsert":
               return Response.json({
@@ -99,6 +144,16 @@ export const Route = createFileRoute("/api/assistant")({
             case "memory.delete":
               memory.deleteMemory(String(body["id"] ?? ""));
               return Response.json({ ok: true });
+
+            case "memory.deleteMany": {
+              const ids = Array.isArray(body["ids"]) ? (body["ids"] as string[]) : [];
+              return Response.json({ removed: memory.deleteMemories(ids) });
+            }
+
+            case "memory.summarize":
+              return Response.json({
+                record: memory.rememberConversationSummary(String(body["summary"] ?? "")),
+              });
 
             default:
               return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });

@@ -112,6 +112,96 @@ function createMockReply(input: GenerateReplyInput): string {
     .join("\n");
 }
 
+/** Yerel AI sunucusundan AKAN (streaming) yanit — Ollama NDJSON uyumlu. */
+async function* streamLocalAi(input: GenerateReplyInput): AsyncGenerator<string> {
+  const { ai } = getLocalStackConfig();
+
+  const response = await fetch(`${ai.baseUrl}${ai.chatPath}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: ai.model,
+      stream: true,
+      messages: [{ role: "system", content: buildSystemPrompt(input) }, ...input.messages],
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Local AI error ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const rawLine of lines) {
+      const line = rawLine.trim().replace(/^data:\s*/, "");
+      if (!line || line === "[DONE]") continue;
+      try {
+        const json = JSON.parse(line) as {
+          message?: { content?: string };
+          choices?: { delta?: { content?: string } }[];
+          response?: string;
+        };
+        const delta =
+          json.message?.content ?? json.choices?.[0]?.delta?.content ?? json.response ?? "";
+        if (delta) yield delta;
+      } catch {
+        /* kismi satir - yoksay */
+      }
+    }
+  }
+}
+
+/** Demo cevaplayiciyi kelime kelime akitir (streaming UX testi icin). */
+async function* streamMock(input: GenerateReplyInput): AsyncGenerator<string> {
+  const words = createMockReply(input).split(/(\s+)/);
+  for (const word of words) {
+    yield word;
+    await new Promise((resolve) => setTimeout(resolve, 18));
+  }
+}
+
+/**
+ * AKAN YANIT — tek merkezi streaming giris noktasi.
+ * Yerel sunucu yoksa/hata verirse demo akisina duser.
+ */
+export async function* streamAssistantReply(
+  input: GenerateReplyInput,
+): AsyncGenerator<{ delta?: string; source?: GenerateReplyResult["source"] }> {
+  const { ai } = getLocalStackConfig();
+
+  if (!ai.enabled) {
+    for await (const delta of streamMock(input)) yield { delta };
+    yield { source: "mock" };
+    return;
+  }
+
+  try {
+    let received = false;
+    for await (const delta of streamLocalAi(input)) {
+      received = true;
+      yield { delta };
+    }
+    if (!received) {
+      for await (const delta of streamMock(input)) yield { delta };
+      yield { source: "mock" };
+      return;
+    }
+    yield { source: "local" };
+  } catch (error) {
+    console.error("[ai-provider] streaming failed, falling back to demo:", error);
+    for await (const delta of streamMock(input)) yield { delta };
+    yield { source: "mock" };
+  }
+}
+
 export async function generateAssistantReply(
   input: GenerateReplyInput,
 ): Promise<GenerateReplyResult> {

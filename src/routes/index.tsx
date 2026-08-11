@@ -1,16 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Moon, Sun } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-
-import { Button } from "@/components/ui/button";
-
+import { Menu, Moon, Sun } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Composer, type PendingFile } from "@/components/assistant/Composer";
 import { ConversationSidebar } from "@/components/assistant/ConversationSidebar";
 import { MemoryPanel } from "@/components/assistant/MemoryPanel";
 import { MessageList } from "@/components/assistant/MessageList";
 import { SettingsDialog } from "@/components/assistant/SettingsDialog";
-import { sendChat, speak, type UiMessage } from "@/lib/assistant-client";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { streamChat, speak, type MemoryHit, type UiMessage } from "@/lib/assistant-client";
 import type { PlaybackHandle } from "@/lib/audio-player";
 import {
   loadConversations,
@@ -32,7 +31,6 @@ import {
   type ThemeMode,
 } from "@/lib/theme";
 
-
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -40,13 +38,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "C204: tamamen yerel çalışan AI + TTS sohbet arayüzü: dosya paylaşımı, Türkçe/İngilizce dil desteği ve hafıza yönetimi paneli.",
+          "C204: tamamen yerel çalışan AI + TTS sohbet arayüzü: vektör tabanlı hafıza, dosya paylaşımı ve Türkçe/İngilizce dil desteği.",
       },
       { property: "og:title", content: "C204 · Yerel AI Asistan Arayüzü" },
       {
         property: "og:description",
         content:
-          "C204, yerel AI sunucunuza bağlanan, sesli yanıt veren ve hafıza yönetimi sunan sohbet arayüzü.",
+          "C204, yerel AI sunucunuza bağlanan, sesli yanıt veren ve vektör tabanlı hafıza yönetimi sunan sohbet arayüzü.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -60,16 +58,19 @@ function AssistantPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [thinking, setThinking] = useState(false);
+  const [streamingId, setStreamingId] = useState<string | null>(null);
   const [memoryScanning, setMemoryScanning] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [isDark, setIsDark] = useState(false);
+  const [draft, setDraft] = useState<string | undefined>(undefined);
   const playbackRef = useRef<PlaybackHandle | null>(null);
+  const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
 
-  // Ilk yukleme: yerel depodan geri yukle
   useEffect(() => {
     const storedSettings = loadSettings();
     const stored = loadConversations();
@@ -84,7 +85,6 @@ function AssistantPage() {
     setIsDark(storedTheme === "dark" || (storedTheme === "system" && prefersDark()));
   }, []);
 
-  // "system" modunda isletim sistemi temasini otomatik takip et
   useEffect(() => {
     if (theme !== "system") return;
     return watchSystemTheme(() => {
@@ -108,11 +108,29 @@ function AssistantPage() {
     saveConversations(next);
   };
 
+  /** Aktif sohbeti guvenli sekilde guncelle (streaming icin fonksiyonel setState). */
+  const mutateActive = useCallback(
+    (id: string, updater: (conversation: Conversation) => Conversation) => {
+      setConversations((prev) => {
+        const next = prev.map((conversation) =>
+          conversation.id === id ? updater(conversation) : conversation,
+        );
+        saveConversations(next);
+        return next;
+      });
+    },
+    [],
+  );
+
   const updateSettings = (next: Settings) => {
     setSettings(next);
     saveSettings(next);
   };
 
+  // Yeni mesajlarda otomatik kaydirma
+  useEffect(() => {
+    scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [conversations, thinking]);
 
   const playAudio = async (message: UiMessage) => {
     playbackRef.current?.stop();
@@ -140,74 +158,156 @@ function AssistantPage() {
     setSpeakingId(null);
   };
 
+  /** Akan yaniti uretir; gecmisi hazir alir (yeniden olusturma da bunu kullanir). */
+  const runAssistant = async (
+    conversationId: string,
+    history: { role: "user" | "assistant"; content: string }[],
+    attachments: { name: string; excerpt: string }[],
+  ) => {
+    const assistantId = `m-${Date.now()}-a`;
+    const useMemory = settings.useShortTerm || settings.useLongTerm;
+    setThinking(true);
+    setMemoryScanning(useMemory);
+
+    const placeholder: UiMessage = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      createdAt: new Date().toISOString(),
+    };
+    mutateActive(conversationId, (conversation) => ({
+      ...conversation,
+      messages: [...conversation.messages, placeholder],
+    }));
+
+    const patch = (fields: Partial<UiMessage>, append?: string) =>
+      mutateActive(conversationId, (conversation) => ({
+        ...conversation,
+        messages: conversation.messages.map((message) =>
+          message.id === assistantId
+            ? {
+                ...message,
+                ...fields,
+                ...(append ? { content: message.content + append } : {}),
+              }
+            : message,
+        ),
+      }));
+
+    let text = "";
+    try {
+      await streamChat(
+        {
+          messages: history,
+          language,
+          useShortTerm: settings.useShortTerm,
+          useLongTerm: settings.useLongTerm,
+          attachments,
+        },
+        {
+          onMemory: (payload: { hits: MemoryHit[]; scanned: number; tookMs: number }) => {
+            setMemoryScanning(false);
+            patch({
+              memoryHits: payload.hits,
+              memoryScanned: payload.scanned,
+              memoryTookMs: payload.tookMs,
+            });
+          },
+          onDelta: (delta) => {
+            if (!text) setStreamingId(assistantId);
+            text += delta;
+            patch({}, delta);
+          },
+          onDone: (payload) => patch({ source: payload.source }),
+        },
+      );
+
+      if (settings.autoSpeak && text.trim()) {
+        void playAudio({ ...placeholder, content: text });
+      }
+    } catch (error) {
+      patch({
+        content:
+          language === "tr"
+            ? `Yanit alinamadi: ${String(error)}`
+            : `Could not get a reply: ${String(error)}`,
+      });
+    } finally {
+      setThinking(false);
+      setStreamingId(null);
+      setMemoryScanning(false);
+    }
+  };
+
   const handleSend = async (text: string, files: PendingFile[]) => {
     if (!active) return;
+    setDraft(undefined);
 
     const userMessage: UiMessage = {
       id: `m-${Date.now()}`,
       role: "user",
       content: text || (language === "tr" ? "(dosya eklendi)" : "(file attached)"),
       createdAt: new Date().toISOString(),
-      attachments: files.map((file) => ({ name: file.name, size: file.size })),
+      attachments: files.map((file) => ({
+        name: file.name,
+        size: file.size,
+        ...(file.type ? { type: file.type } : {}),
+        ...(file.preview ? { preview: file.preview } : {}),
+      })),
     };
 
-    const withUser = conversations.map((conversation) =>
-      conversation.id === active.id
-        ? {
-            ...conversation,
-            title:
-              conversation.messages.length === 0
-                ? userMessage.content.slice(0, 40)
-                : conversation.title,
-            messages: [...conversation.messages, userMessage],
-          }
-        : conversation,
+    mutateActive(active.id, (conversation) => ({
+      ...conversation,
+      title:
+        conversation.messages.length === 0 ? userMessage.content.slice(0, 40) : conversation.title,
+      messages: [...conversation.messages, userMessage],
+    }));
+
+    const history = [...active.messages, userMessage].map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+
+    await runAssistant(
+      active.id,
+      history,
+      files.map((file) => ({ name: file.name, excerpt: file.excerpt })),
     );
-    persist(withUser);
+  };
 
-    const useMemory = settings.useShortTerm || settings.useLongTerm;
-    setThinking(true);
-    setMemoryScanning(useMemory);
+  /** Bir asistan yanitini sil ve o ana kadarki gecmisle yeniden uret. */
+  const handleRegenerate = async (message: UiMessage) => {
+    if (!active) return;
+    const index = active.messages.findIndex((item) => item.id === message.id);
+    if (index < 0) return;
+    const history = active.messages.slice(0, index).map((item) => ({
+      role: item.role,
+      content: item.content,
+    }));
+    mutateActive(active.id, (conversation) => ({
+      ...conversation,
+      messages: conversation.messages.slice(0, index),
+    }));
+    await runAssistant(active.id, history, []);
+  };
 
-    try {
-      const history = [...active.messages, userMessage].map((message) => ({
-        role: message.role,
-        content: message.content,
-      }));
-
-      const reply = await sendChat({
-        messages: history,
-        language,
-        useShortTerm: settings.useShortTerm,
-        useLongTerm: settings.useLongTerm,
-        attachments: files.map((file) => ({ name: file.name, excerpt: file.excerpt })),
-      });
-
-      const assistantMessage: UiMessage = {
-        id: `m-${Date.now()}-a`,
-        role: "assistant",
-        content: reply.content,
-        createdAt: new Date().toISOString(),
-      };
-
-      const withAssistant = withUser.map((conversation) =>
-        conversation.id === active.id
-          ? { ...conversation, messages: [...conversation.messages, assistantMessage] }
-          : conversation,
-      );
-      persist(withAssistant);
-
-      if (settings.autoSpeak) void playAudio(assistantMessage);
-    } finally {
-      setThinking(false);
-      setMemoryScanning(false);
-    }
+  /** Kullanici mesajini composer'a geri yukler (duzenle). */
+  const handleEditUser = (message: UiMessage) => {
+    if (!active) return;
+    const index = active.messages.findIndex((item) => item.id === message.id);
+    if (index < 0) return;
+    mutateActive(active.id, (conversation) => ({
+      ...conversation,
+      messages: conversation.messages.slice(0, index),
+    }));
+    setDraft(message.content);
   };
 
   const handleNew = () => {
     const conversation = newConversation(language);
     persist([conversation, ...conversations]);
     setActiveId(conversation.id);
+    setMobileNavOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -217,26 +317,71 @@ function AssistantPage() {
     if (id === activeId) setActiveId(list[0]!.id);
   };
 
+  // Klavye kisayollari: Ctrl+K yeni sohbet, Ctrl+M hafiza, Ctrl+, ayarlar
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        handleNew();
+      } else if (event.key.toLowerCase() === "m") {
+        event.preventDefault();
+        setMemoryOpen((open) => !open);
+      } else if (event.key === ",") {
+        event.preventDefault();
+        setSettingsOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const sidebar = (
+    <ConversationSidebar
+      language={language}
+      conversations={conversations}
+      activeId={activeId}
+      onSelect={(id) => {
+        setActiveId(id);
+        setMobileNavOpen(false);
+      }}
+      onNew={handleNew}
+      onDelete={handleDelete}
+      onOpenMemory={() => {
+        setMemoryOpen(true);
+        setMobileNavOpen(false);
+      }}
+      onOpenSettings={() => {
+        setSettingsOpen(true);
+        setMobileNavOpen(false);
+      }}
+    />
+  );
+
   return (
     <div className="flex h-screen overflow-hidden">
-      <ConversationSidebar
-        language={language}
-        conversations={conversations}
-        activeId={activeId}
-        onSelect={setActiveId}
-        onNew={handleNew}
-        onDelete={handleDelete}
-        onOpenMemory={() => setMemoryOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+      <div className="hidden md:flex">{sidebar}</div>
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border bg-card/40 px-6 py-3 backdrop-blur-xl">
-          <h2 className="hud-title truncate text-xs font-medium">
-            {active?.title ?? t(language, "newChat")}
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="hud-text rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-medium text-primary">
+        <header className="flex items-center justify-between gap-2 border-b border-border bg-card/40 px-3 py-3 backdrop-blur-xl sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" aria-label="menu">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <SheetTitle className="sr-only">{t(language, "conversations")}</SheetTitle>
+                {sidebar}
+              </SheetContent>
+            </Sheet>
+            <h2 className="hud-title truncate text-xs font-medium">
+              {active?.title ?? t(language, "newChat")}
+            </h2>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="hud-text hidden rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-medium text-primary sm:inline">
               {language === "tr" ? "Türkçe" : "English"}
             </span>
             <Button
@@ -252,23 +397,30 @@ function AssistantPage() {
           </div>
         </header>
 
-        <MessageList
-          language={language}
-          messages={active?.messages ?? []}
-          thinking={thinking}
-          memoryScanning={memoryScanning}
-          speakingId={speakingId}
-          levels={levels}
-          onSpeak={(message) => void playAudio(message)}
-          onStop={stopAudio}
-        />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <MessageList
+            language={language}
+            messages={active?.messages ?? []}
+            thinking={thinking}
+            streamingId={streamingId}
+            memoryScanning={memoryScanning}
+            speakingId={speakingId}
+            levels={levels}
+            onSpeak={(message) => void playAudio(message)}
+            onStop={stopAudio}
+            onRegenerate={(message) => void handleRegenerate(message)}
+            onEditUser={handleEditUser}
+          />
+          <div ref={scrollAnchorRef} />
+        </div>
 
-        <div className="px-4 pb-5">
+        <div className="px-3 pb-4 sm:px-4 sm:pb-5">
           <div className="mx-auto max-w-3xl">
             <Composer
               language={language}
               disabled={thinking}
               useShortTerm={settings.useShortTerm}
+              {...(draft !== undefined ? { draft } : {})}
               onToggleShortTerm={() =>
                 updateSettings({ ...settings, useShortTerm: !settings.useShortTerm })
               }
@@ -287,7 +439,6 @@ function AssistantPage() {
         theme={theme}
         onThemeChange={updateTheme}
       />
-
     </div>
   );
 }
