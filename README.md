@@ -204,3 +204,19 @@ yedeginde gercek genlik olmadigi icin dusuk yogunluklu bir gosterge kullanilir.)
 - Hizli gecis: sohbet basligindaki gunes/ay butonu. Detayli secim: Ayarlar > Tema.
 - Renkler `src/styles.css` icindeki `:root` ve `.dark` token'larindan gelir;
   ikisi de mavi tonlu, yumusak kontrastli olacak sekilde ayarlandi.
+
+## Hafıza Entegrasyon Rehberi (vektör tabanlı)
+
+Tüm hafıza erişimi TEK fonksiyondan geçer:
+
+- `retrieveMemory()` — `src/lib/backend/memory-store.server.ts`
+  - "tüm metni oku" DEĞİL: kısa süreli hafıza sabit/küçük veri (son 2 konuşma özeti, arama yapılmaz),
+    uzun süreli hafıza embedding + cosine benzerliği ile **sadece top-K (varsayılan 4)** kaydı getirir;
+    `RELEVANCE_THRESHOLD` altındaki hiçbir kayıt modele gösterilmez.
+- `searchLongTermMemory()` — Chroma/kendi vektör DB'nizi bağlayacağınız yer (aynı şekilde sadece top-K dönün).
+- `embedText()` — `src/lib/backend/memory-embeddings.server.ts`; ücretsiz, sınırsız, tamamen çevrimdışı
+  hashing-trick embedding. Kendi embedding modelinizi (örn. Ollama `/api/embeddings`) bağlamak için
+  yalnızca bu fonksiyonun gövdesini değiştirin.
+
+Arayüz, her yanıtta hangi kayıtların kullanıldığını ve alaka skorunu (%) gösterir; Hafıza Yönetimi
+panelinde arama, kategori filtresi, toplu silme ve kayıtlar arası bağlantı haritası (graph) bulunur.
