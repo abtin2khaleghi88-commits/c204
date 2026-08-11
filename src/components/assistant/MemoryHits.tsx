@@ -15,8 +15,8 @@ export function MemoryHits({
 }: {
   language: Language;
   hits: MemoryHit[];
-  scanned?: number;
-  tookMs?: number;
+  scanned?: number | undefined;
+  tookMs?: number | undefined;
 }) {
   if (hits.length === 0) return null;
 
