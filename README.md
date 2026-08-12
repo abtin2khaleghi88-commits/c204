@@ -47,6 +47,7 @@ LOCAL_AI_BASE_URL=http://localhost:11434   # Ollama
 LOCAL_AI_CHAT_PATH=/api/chat
 LOCAL_AI_MODEL=llama3.1
 LOCAL_TTS_URL=http://localhost:8880/synthesize
+LOCAL_STT_URL=http://localhost:9000/transcribe   # yerel Whisper
 LOCAL_MEMORY_BASE_URL=http://localhost:8000  # Chroma
 MEMORY_SHORT_TERM_COUNT=2
 MEMORY_COLLECTION=local_assistant_memory
@@ -87,7 +88,7 @@ POST /api/assistant
 ### Arayüz özellikleri
 
 - Sol tarafta kutucuk halinde konuşma listesi (yerel `localStorage`).
-- Klavye ile metin girişi (speech-to-text yok, bilinçli olarak eklenmedi).
+- Klavye ile metin girişi + push-to-talk (basılı tutarak konuşma; metin otomatik gönderilmez).
 - Dosya ekleme: buton + sürükle-bırak; metin dosyalarının içeriği prompt'a özet olarak geçer.
 - Ayarlar: Türkçe/İngilizce geçişi, otomatik sesli okuma, hafıza tercihleri.
 - AI konuşurken ses dalgası + parıltı animasyonu.
@@ -305,4 +306,10 @@ Tüm hafıza erişimi TEK fonksiyondan geçer:
   yalnızca bu fonksiyonun gövdesini değiştirin.
 
 Arayüz, her yanıtta hangi kayıtların kullanıldığını ve alaka skorunu (%) gösterir; Hafıza Yönetimi
-panelinde arama, kategori filtresi, toplu silme ve kayıtlar arası bağlantı haritası (graph) bulunur.
+panelinde arama, kategori filtresi, toplu silme ve kayıtlar arası bağlantı haritası bulunur.
+
+Bağlantı haritası (`src/components/assistant/MemoryGraph.tsx`) canvas 2D üzerinde güç-yönlendirmeli
+(force-directed) çalışır: alakalı kayıtlar birbirine yaklaşır, çizgi kalınlığı benzerlik gücünü
+gösterir, bir düğüme gelince/tıklayınca bağlantılı kayıtlar vurgulanıp diğerleri soluklaşır;
+tekerlek ile zoom, sürükleyerek pan yapılır. Tüm çizim tek `requestAnimationFrame` döngüsünde
+olduğu için çok sayıda kayıtta da akıcı kalır.
