@@ -197,6 +197,92 @@ yedeginde gercek genlik olmadigi icin dusuk yogunluklu bir gosterge kullanilir.)
 
 ---
 
+## STT Entegrasyon Rehberi (Speech-to-Text / Push-to-Talk)
+
+### Kural: ucretli/tokene bagli hicbir saglayici yok
+
+OpenAI Whisper API, Google Speech-to-Text, Azure, Deepgram vb. **kullanilmaz.**
+Tek hedef motor: kendi bilgisayarinizda calisan **yerel Whisper** sunucunuz
+(whisper.cpp / faster-whisper / whisper-asr-webservice).
+
+```
+LOCAL_STT_URL=http://localhost:9000/transcribe   # varsayilan
+LOCAL_STT_TIMEOUT_MS=15000                       # opsiyonel
+```
+
+### Ses tanima NEREDE yapiliyor? / Where is speech transcribed?
+
+- **Dosya:** `src/lib/backend/stt-provider.server.ts`
+- **Merkezi fonksiyon:** `transcribeAudio()`
+- **Degistireceginiz fonksiyon:** `callLocalStt()` — istek/yanit sekli burada
+
+Kendi API sekliniz farkliysa **sadece** `callLocalStt()` govdesini degistirin.
+
+### Yerel sunucunuzun uygulamasi gereken sozlesme
+
+**Istek**
+
+```
+POST http://localhost:9000/transcribe
+Content-Type: multipart/form-data
+
+file      = <ses dosyasi>   # audio/webm (tarayici varsayilani), audio/ogg veya audio/wav
+language  = "tr" | "en"
+```
+
+**Yanit**
+
+```
+200 OK
+Content-Type: application/json
+
+{ "text": "cozumlenen metin" }
+```
+
+`text` yerine `transcript`, `transcription` veya `{ "result": { "text": "..." } }`
+alan adlari da kabul edilir.
+
+**Hata:** `4xx / 5xx` + kisa metin govdesi (arayuz sessizce yedege duser).
+
+**Onerilen giris formati:** 16 kHz mono WAV; tarayici webm/opus gonderir, Whisper
+tarafinda `ffmpeg` ile donusturmeniz yeterlidir.
+
+### Arayuz davranisi (push-to-talk)
+
+- Ayarlar > **Konusma tusu** ile tus secilir (varsayilan `ControlRight` = Sag Ctrl);
+  "Tusu degistir" butonuna basip istediginiz tusa basmaniz yeterlidir.
+- Tus basili tutuldugu surece mikrofon kaydeder; composer'da nabız atan kirmizi
+  gosterge + **gercek mikrofon genligine** gore dalga animasyonu gorunur.
+  Fare/dokunma ile mikrofon butonunu basili tutmak da ayni isi yapar.
+- Tus birakilinca kayit durur, ses `/api/assistant` (`action:"stt"`) ucuna gider,
+  donen metin **mesaj kutusuna yazilir — otomatik GONDERILMEZ.**
+- **Dosya:** `src/hooks/use-push-to-talk.ts` (kayit + tus yonetimi),
+  `src/lib/assistant-client.ts` → `transcribeSpeech()` (tek istemci cagrisi).
+
+### GECICI onizleme yedegi (gercek sistemde kullanilmaz)
+
+Yerel Whisper sunucusu ayakta degilse backend `{ fallback: true }` doner ve
+arayuz **sessizce** kayitla es zamanli dinlenen tarayici `SpeechRecognition`
+sonucunu kullanir (TTS'teki `previewFallbackSpeak()` ile ayni mantik).
+Bu yol **yalnizca gelistirme/onizleme** icindir; yerel motorunuz baglandigi anda
+hic kullanilmaz ve `use-push-to-talk.ts` icindeki `createRecognition()` guvenle
+silinebilir.
+
+### Akış (data flow)
+
+```text
+Tus basili   →  usePushToTalk()                  src/hooks/use-push-to-talk.ts
+             →  transcribeSpeech()               src/lib/assistant-client.ts
+             →  POST /api/assistant {action:"stt"}  src/routes/api/assistant.ts
+             →  transcribeAudio() → callLocalStt()  src/lib/backend/stt-provider.server.ts
+             →  metin composer'a yazilir (otomatik gonderim yok)
+             (sunucu kapali ise: tarayici SpeechRecognition — gecici)
+```
+
+---
+
+
+
 ## Tema / Dark Mode
 
 - **Dosya:** `src/lib/theme.ts` — `light | dark | system` modlari, `localStorage`
