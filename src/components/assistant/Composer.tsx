@@ -15,13 +15,22 @@ export type PendingFile = {
   preview?: string;
 };
 
+export type DraftPatch = { text: string; id: number };
+
 type Props = {
   language: Language;
   disabled: boolean;
   useShortTerm: boolean;
-  draft?: string;
+  draft?: DraftPatch;
+  /** Push-to-talk durumu */
+  recording?: boolean;
+  transcribing?: boolean;
+  levels?: number[];
+  pushToTalkKey?: string;
   onToggleShortTerm: () => void;
   onSend: (text: string, files: PendingFile[]) => void;
+  onMicDown?: () => void;
+  onMicUp?: () => void;
 };
 
 async function readExcerpt(file: File): Promise<string> {
