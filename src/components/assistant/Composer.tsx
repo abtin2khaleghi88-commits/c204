@@ -1,4 +1,4 @@
-import { Brain, Paperclip, SendHorizonal, X } from "lucide-react";
+import { Brain, Mic, Paperclip, SendHorizonal, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -188,6 +188,27 @@ export function Composer({
         className="resize-none border-0 bg-transparent px-2 shadow-none focus-visible:ring-0"
       />
 
+      {(recording || transcribing) && (
+        <div className="animate-rise-in mx-1 mb-1 flex items-center gap-3 rounded-2xl border border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inset-0 animate-ping rounded-full bg-destructive/70" />
+            <span className="relative h-2.5 w-2.5 rounded-full bg-destructive" />
+          </span>
+          <span className="hud-text text-[10px] text-primary">
+            {recording ? t(language, "recording") : t(language, "transcribing")}
+          </span>
+          <div className="flex h-5 flex-1 items-end gap-[3px]">
+            {(levels.length > 0 ? levels : new Array(9).fill(0.06)).map((level, index) => (
+              <span
+                key={index}
+                className="flex-1 rounded-full bg-primary/70 transition-[height] duration-75"
+                style={{ height: `${Math.max(8, Math.min(100, level * 100))}%` }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-1 flex items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-1">
           <input
@@ -209,6 +230,22 @@ export function Composer({
           </Button>
           <Button
             type="button"
+            variant={recording ? "default" : "ghost"}
+            size="sm"
+            className={"gap-1.5 " + (recording ? "glow-ring" : "")}
+            title={`${t(language, "pushToTalk")}${pushToTalkKey ? ` · ${pushToTalkKey}` : ""}`}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              onMicDown?.();
+            }}
+            onPointerUp={() => onMicUp?.()}
+            onPointerLeave={() => recording && onMicUp?.()}
+          >
+            <Mic className="h-4 w-4" />
+            <span className="hidden sm:inline">{t(language, "pushToTalk")}</span>
+          </Button>
+          <Button
+            type="button"
             variant={useShortTerm ? "secondary" : "ghost"}
             size="sm"
             className="gap-1.5"
@@ -219,6 +256,7 @@ export function Composer({
             <span className="hidden sm:inline">{t(language, "shortTerm")}</span>
           </Button>
         </div>
+
 
         <div className="flex items-center gap-2">
           <span className="hud-text hidden text-[10px] text-muted-foreground sm:inline">
