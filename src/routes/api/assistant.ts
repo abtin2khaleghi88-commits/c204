@@ -122,6 +122,23 @@ export const Route = createFileRoute("/api/assistant")({
               });
             }
 
+            case "stt": {
+              const { transcribeAudio } = await import("@/lib/backend/stt-provider.server");
+              const result = await transcribeAudio({
+                audioBase64: String(body["audio"] ?? ""),
+                mimeType: String(body["mimeType"] ?? "audio/webm"),
+                language,
+              });
+              // Yerel Whisper sunucusu kapali -> istemci GECICI tarayici
+              // ses tanimasina duser (previewFallbackSpeak ile ayni mantik).
+              if ("unavailable" in result) {
+                console.warn("[api/assistant] stt fallback:", result.reason);
+                return Response.json({ fallback: true, reason: result.reason });
+              }
+              return Response.json({ text: result.text });
+            }
+
+
             case "memory.list": {
               const records = memory.listMemories();
               return Response.json({

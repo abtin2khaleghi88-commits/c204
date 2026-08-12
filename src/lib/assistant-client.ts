@@ -159,6 +159,28 @@ export function rememberSummary(summary: string) {
 
 /**
  * ============================================================================
+ * STT: tek merkezi uc (`POST /api/assistant` + action:"stt") cagrilir.
+ * ============================================================================
+ * Backend `{ text }` veya yerel sunucu kapaliysa `{ fallback: true }` doner.
+ * Motoru degistirmek icin SADECE src/lib/backend/stt-provider.server.ts
+ * dosyasindaki `callLocalStt()` fonksiyonunu duzenleyin.
+ */
+export function transcribeSpeech(input: {
+  audioBase64: string;
+  mimeType: string;
+  language: Language;
+}) {
+  return post<{ text?: string; fallback?: boolean; reason?: string }>({
+    action: "stt",
+    audio: input.audioBase64,
+    mimeType: input.mimeType,
+    language: input.language,
+  });
+}
+
+
+/**
+ * ============================================================================
  * TTS: tek merkezi uc (`POST /api/assistant` + action:"tts") cagrilir.
  * ============================================================================
  * Backend ne dondururse oynatici genel kalir:
