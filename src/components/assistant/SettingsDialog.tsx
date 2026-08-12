@@ -101,6 +101,45 @@ export function SettingsDialog({
             />
           </div>
 
+          <div className="space-y-3 rounded-2xl border border-border/70 bg-secondary/20 p-3">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="stt-enabled" className="flex items-center gap-2">
+                <Mic className="h-4 w-4 text-primary" />
+                {t(language, "pushToTalk")}
+              </Label>
+              <Switch
+                id="stt-enabled"
+                checked={settings.sttEnabled}
+                onCheckedChange={(checked) => onChange({ ...settings, sttEnabled: checked })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <Label className="text-muted-foreground">{t(language, "pushToTalkKey")}</Label>
+              <Button
+                size="sm"
+                variant={capturing ? "default" : "secondary"}
+                className="hud-text min-w-[140px] rounded-full text-[11px]"
+                onClick={() => setCapturing(true)}
+                onKeyDown={(event) => {
+                  if (!capturing) return;
+                  event.preventDefault();
+                  if (event.code === "Escape") {
+                    setCapturing(false);
+                    return;
+                  }
+                  onChange({ ...settings, pushToTalkKey: event.code });
+                  setCapturing(false);
+                }}
+              >
+                {capturing ? t(language, "pressAnyKey") : settings.pushToTalkKey}
+              </Button>
+            </div>
+            <p className="hud-text text-[10px] text-muted-foreground opacity-70">
+              {settings.pushToTalkKey} — {t(language, "sttHint")}
+            </p>
+          </div>
+
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="short-term">{t(language, "useShortTerm")}</Label>
             <Switch
@@ -109,6 +148,7 @@ export function SettingsDialog({
               onCheckedChange={(checked) => onChange({ ...settings, useShortTerm: checked })}
             />
           </div>
+
 
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="long-term">{t(language, "useLongTerm")}</Label>
