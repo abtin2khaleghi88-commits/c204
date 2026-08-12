@@ -1,4 +1,5 @@
-import { Languages, Palette } from "lucide-react";
+import { Languages, Mic, Palette } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +33,8 @@ export function SettingsDialog({
   onThemeChange,
 }: Props) {
   const language = settings.language;
+  const [capturing, setCapturing] = useState(false);
+
 
 
   return (
