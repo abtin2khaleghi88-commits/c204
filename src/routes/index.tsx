@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Menu, Moon, Sun } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Composer, type PendingFile } from "@/components/assistant/Composer";
+import { Composer, type DraftPatch, type PendingFile } from "@/components/assistant/Composer";
 import { ConversationSidebar } from "@/components/assistant/ConversationSidebar";
 import { MemoryPanel } from "@/components/assistant/MemoryPanel";
 import { MessageList } from "@/components/assistant/MessageList";
@@ -67,7 +67,7 @@ function AssistantPage() {
   const [levels, setLevels] = useState<number[]>([]);
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [isDark, setIsDark] = useState(false);
-  const [draft, setDraft] = useState<string | undefined>(undefined);
+  const [draft, setDraft] = useState<DraftPatch | undefined>(undefined);
   const playbackRef = useRef<PlaybackHandle | null>(null);
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
 
@@ -300,7 +300,7 @@ function AssistantPage() {
       ...conversation,
       messages: conversation.messages.slice(0, index),
     }));
-    setDraft(message.content);
+    setDraft({ text: message.content, id: Date.now() });
   };
 
   const handleNew = () => {
