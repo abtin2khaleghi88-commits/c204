@@ -9,6 +9,7 @@ import { MessageList } from "@/components/assistant/MessageList";
 import { SettingsDialog } from "@/components/assistant/SettingsDialog";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { usePushToTalk } from "@/hooks/use-push-to-talk";
 import { streamChat, speak, type MemoryHit, type UiMessage } from "@/lib/assistant-client";
 import type { PlaybackHandle } from "@/lib/audio-player";
 import {
