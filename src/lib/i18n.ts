@@ -134,6 +134,14 @@ const dict = {
     graphHint: "Lines show semantic links between records.",
     sendHint: "Ctrl+Enter to send",
     files: "Files",
+    pushToTalk: "Push to talk",
+    pushToTalkKey: "Talk key",
+    pressAnyKey: "Press any key...",
+    changeKey: "Change key",
+    recording: "Recording...",
+    transcribing: "Transcribing...",
+    sttHint: "hold the key and speak",
+    sttError: "Microphone or speech recognition unavailable.",
   },
 } as const;
 
