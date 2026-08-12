@@ -16,6 +16,10 @@
  *   LOCAL_TTS_URL=http://localhost:8880/synthesize
  *   LOCAL_TTS_TIMEOUT_MS=8000
  *
+ *   # --- STT (SADECE yerel Whisper sunucusu; ucretli saglayici YOK) ---
+ *   LOCAL_STT_URL=http://localhost:9000/transcribe
+ *   LOCAL_STT_TIMEOUT_MS=15000
+ *
  *   # --- Hafiza ---
  *   LOCAL_MEMORY_BASE_URL=http://localhost:8000  # Chroma
  * ============================================================================
