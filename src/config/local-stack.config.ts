@@ -16,6 +16,10 @@
  *   LOCAL_TTS_URL=http://localhost:8880/synthesize
  *   LOCAL_TTS_TIMEOUT_MS=8000
  *
+ *   # --- STT (SADECE yerel Whisper sunucusu; ucretli saglayici YOK) ---
+ *   LOCAL_STT_URL=http://localhost:9000/transcribe
+ *   LOCAL_STT_TIMEOUT_MS=15000
+ *
  *   # --- Hafiza ---
  *   LOCAL_MEMORY_BASE_URL=http://localhost:8000  # Chroma
  * ============================================================================
@@ -37,6 +41,11 @@ export type LocalStackConfig = {
     /** Yerel TTS sunucusu endpoint'i (varsayilan http://localhost:8880/synthesize) */
     url: string;
     /** Istek zaman asimi (ms) — sunucu kapaliysa hizli dusmek icin */
+    timeoutMs: number;
+  };
+  stt: {
+    /** Yerel Whisper sunucusu endpoint'i (varsayilan http://localhost:9000/transcribe) */
+    url: string;
     timeoutMs: number;
   };
   memory: {
@@ -67,6 +76,10 @@ export function getLocalStackConfig(): LocalStackConfig {
       provider: "local",
       url: env("LOCAL_TTS_URL") || "http://localhost:8880/synthesize",
       timeoutMs: Number(env("LOCAL_TTS_TIMEOUT_MS") || 8000),
+    },
+    stt: {
+      url: env("LOCAL_STT_URL") || "http://localhost:9000/transcribe",
+      timeoutMs: Number(env("LOCAL_STT_TIMEOUT_MS") || 15000),
     },
     memory: {
       baseUrl: memoryBaseUrl || "http://localhost:8000",

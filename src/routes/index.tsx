@@ -2,13 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Menu, Moon, Sun } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Composer, type PendingFile } from "@/components/assistant/Composer";
+import { Composer, type DraftPatch, type PendingFile } from "@/components/assistant/Composer";
 import { ConversationSidebar } from "@/components/assistant/ConversationSidebar";
 import { MemoryPanel } from "@/components/assistant/MemoryPanel";
 import { MessageList } from "@/components/assistant/MessageList";
 import { SettingsDialog } from "@/components/assistant/SettingsDialog";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { usePushToTalk } from "@/hooks/use-push-to-talk";
 import { streamChat, speak, type MemoryHit, type UiMessage } from "@/lib/assistant-client";
 import type { PlaybackHandle } from "@/lib/audio-player";
 import {
@@ -67,7 +68,7 @@ function AssistantPage() {
   const [levels, setLevels] = useState<number[]>([]);
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [isDark, setIsDark] = useState(false);
-  const [draft, setDraft] = useState<string | undefined>(undefined);
+  const [draft, setDraft] = useState<DraftPatch | undefined>(undefined);
   const playbackRef = useRef<PlaybackHandle | null>(null);
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
 
@@ -126,6 +127,18 @@ function AssistantPage() {
     setSettings(next);
     saveSettings(next);
   };
+
+  /** Push-to-talk (basili tutarak konusma): metin otomatik gonderilmez. */
+  const pushToTalk = usePushToTalk({
+    keyCode: settings.pushToTalkKey,
+    language,
+    enabled: settings.sttEnabled && !settingsOpen,
+    onTranscript: useCallback(
+      (text: string) => setDraft({ text, id: Date.now() }),
+      [],
+    ),
+  });
+
 
   // Yeni mesajlarda otomatik kaydirma
   useEffect(() => {
@@ -300,7 +313,7 @@ function AssistantPage() {
       ...conversation,
       messages: conversation.messages.slice(0, index),
     }));
-    setDraft(message.content);
+    setDraft({ text: message.content, id: Date.now() });
   };
 
   const handleNew = () => {
@@ -421,6 +434,12 @@ function AssistantPage() {
               disabled={thinking}
               useShortTerm={settings.useShortTerm}
               {...(draft !== undefined ? { draft } : {})}
+              recording={pushToTalk.recording}
+              transcribing={pushToTalk.transcribing}
+              levels={pushToTalk.levels}
+              pushToTalkKey={settings.pushToTalkKey}
+              onMicDown={() => void pushToTalk.start()}
+              onMicUp={pushToTalk.stop}
               onToggleShortTerm={() =>
                 updateSettings({ ...settings, useShortTerm: !settings.useShortTerm })
               }
@@ -428,6 +447,7 @@ function AssistantPage() {
             />
           </div>
         </div>
+
       </main>
 
       <MemoryPanel language={language} open={memoryOpen} onOpenChange={setMemoryOpen} />

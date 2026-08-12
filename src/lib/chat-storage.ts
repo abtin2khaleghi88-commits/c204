@@ -12,6 +12,10 @@ export type Settings = {
   autoSpeak: boolean;
   useShortTerm: boolean;
   useLongTerm: boolean;
+  /** Push-to-talk: basili tutulacak tus (KeyboardEvent.code) */
+  pushToTalkKey: string;
+  /** Push-to-talk acik mi */
+  sttEnabled: boolean;
 };
 
 const CONVERSATIONS_KEY = "local-assistant.conversations";
@@ -22,6 +26,8 @@ export const defaultSettings: Settings = {
   autoSpeak: true,
   useShortTerm: false,
   useLongTerm: true,
+  pushToTalkKey: "ControlRight",
+  sttEnabled: true,
 };
 
 export function newConversation(language: Language): Conversation {
