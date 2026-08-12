@@ -127,6 +127,18 @@ function AssistantPage() {
     saveSettings(next);
   };
 
+  /** Push-to-talk (basili tutarak konusma): metin otomatik gonderilmez. */
+  const pushToTalk = usePushToTalk({
+    keyCode: settings.pushToTalkKey,
+    language,
+    enabled: settings.sttEnabled && !settingsOpen,
+    onTranscript: useCallback(
+      (text: string) => setDraft({ text, id: Date.now() }),
+      [],
+    ),
+  });
+
+
   // Yeni mesajlarda otomatik kaydirma
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -421,6 +433,12 @@ function AssistantPage() {
               disabled={thinking}
               useShortTerm={settings.useShortTerm}
               {...(draft !== undefined ? { draft } : {})}
+              recording={pushToTalk.recording}
+              transcribing={pushToTalk.transcribing}
+              levels={pushToTalk.levels}
+              pushToTalkKey={settings.pushToTalkKey}
+              onMicDown={() => void pushToTalk.start()}
+              onMicUp={pushToTalk.stop}
               onToggleShortTerm={() =>
                 updateSettings({ ...settings, useShortTerm: !settings.useShortTerm })
               }
@@ -428,6 +446,7 @@ function AssistantPage() {
             />
           </div>
         </div>
+
       </main>
 
       <MemoryPanel language={language} open={memoryOpen} onOpenChange={setMemoryOpen} />
