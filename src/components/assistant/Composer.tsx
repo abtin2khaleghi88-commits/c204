@@ -64,8 +64,14 @@ export function Composer({
   disabled,
   useShortTerm,
   draft,
+  recording = false,
+  transcribing = false,
+  levels = [],
+  pushToTalkKey,
   onToggleShortTerm,
   onSend,
+  onMicDown,
+  onMicUp,
 }: Props) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<PendingFile[]>([]);
@@ -80,7 +86,7 @@ export function Composer({
 
   useEffect(() => {
     if (draft === undefined) return;
-    setText(draft);
+    setText(draft.text);
     textareaRef.current?.focus();
   }, [draft]);
 
