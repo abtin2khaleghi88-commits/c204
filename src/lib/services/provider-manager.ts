@@ -80,8 +80,6 @@ export function selectProvider(
   if (order.length === 0) return { ok: false, reason: "no_provider_enabled" };
 
   const preferredId = order[0]!;
-  let lastReason: Selection extends { ok: false } ? never : never;
-  void lastReason;
   let fallbackReason: Extract<Selection, { ok: false }>["reason"] = "provider_unavailable";
   let fallbackService = preferredId;
 
