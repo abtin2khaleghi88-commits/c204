@@ -138,6 +138,57 @@ export const Route = createFileRoute("/api/assistant")({
               return Response.json({ text: result.text });
             }
 
+            /**
+             * SERVIS DURUMU / SERVICE STATUS
+             * Kullanim panosu icin: hangi yerel uc yapilandirilmis ve
+             * gercekten erisilebilir. Kota UYDURULMAZ; sadece erisilebilirlik
+             * ve yapilandirma bilgisi doner.
+             */
+            case "status": {
+              const { getLocalStackConfig } = await import("@/config/local-stack.config");
+              const config = getLocalStackConfig();
+              const probe = Boolean(body["probe"]);
+
+              const reach = async (url: string, init?: RequestInit) => {
+                if (!probe) return "unknown" as const;
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 1500);
+                try {
+                  await fetch(url, { signal: controller.signal, ...init });
+                  return "available" as const;
+                } catch {
+                  return "unavailable" as const;
+                } finally {
+                  clearTimeout(timer);
+                }
+              };
+
+              const [ai, tts, stt] = await Promise.all([
+                config.ai.enabled ? reach(`${config.ai.baseUrl}/api/tags`) : Promise.resolve("not_configured" as const),
+                reach(config.tts.url, { method: "OPTIONS" }),
+                reach(config.stt.url, { method: "OPTIONS" }),
+              ]);
+
+              return Response.json({
+                probed: probe,
+                availability: {
+                  "ai.ollama": ai,
+                  "tts.local": tts,
+                  "stt.local": stt,
+                  "memory.embeddings": "available",
+                },
+                config: {
+                  aiBaseUrl: config.ai.baseUrl,
+                  aiModel: config.ai.model,
+                  aiConfigured: config.ai.enabled,
+                  ttsUrl: config.tts.url,
+                  sttUrl: config.stt.url,
+                  memoryBaseUrl: config.memory.baseUrl,
+                  memoryConfigured: config.memory.enabled,
+                },
+              });
+            }
+
 
             case "memory.list": {
               const records = memory.listMemories();
