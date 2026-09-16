@@ -180,6 +180,28 @@ export function transcribeSpeech(input: {
 
 
 /**
+ * SERVIS DURUMU: yerel uclarin yapilandirmasi ve (istege bagli) erisilebilirligi.
+ * `probe: true` gonderilirse kisa zaman asimli gercek baglanti denemesi yapilir.
+ */
+export type ServiceStatusResponse = {
+  probed: boolean;
+  availability: Record<string, "available" | "unavailable" | "not_configured" | "unknown">;
+  config: {
+    aiBaseUrl: string;
+    aiModel: string;
+    aiConfigured: boolean;
+    ttsUrl: string;
+    sttUrl: string;
+    memoryBaseUrl: string;
+    memoryConfigured: boolean;
+  };
+};
+
+export function fetchServiceStatus(probe = false) {
+  return post<ServiceStatusResponse>({ action: "status", probe });
+}
+
+/**
  * ============================================================================
  * TTS: tek merkezi uc (`POST /api/assistant` + action:"tts") cagrilir.
  * ============================================================================
@@ -190,12 +212,15 @@ export function transcribeSpeech(input: {
  *
  * Motoru degistirmek icin SADECE src/lib/backend/tts-provider.server.ts
  * dosyasindaki `callLocalTts()` fonksiyonunu duzenleyin.
+ *
+ * NOT: Saglayici secimi burada YAPILMAZ. Hangi motorun kullanilacagina
+ * `src/lib/services/voice.ts` (provider manager) karar verir.
  */
-export async function speak(
+export async function speakWithLocalServer(
   text: string,
   language: Language,
   handlers: { onLevels?: (levels: number[]) => void; onEnded?: () => void } = {},
-): Promise<PlaybackHandle> {
+): Promise<PlaybackHandle | null> {
   const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -218,23 +243,23 @@ export async function speak(
     error?: string;
   };
   if (payload.audio) return playAudioSource(payload.audio, handlers);
-  if (payload.fallback) return previewFallbackSpeak(text, language, handlers);
+  /** null = yerel sunucu erisilemez; karar katmani yedege gecebilir. */
+  if (payload.fallback) return null;
   throw new Error(payload.error ?? "TTS returned no audio");
 }
 
 /**
  * ============================================================================
- * GECICI ONIZLEME YEDEGI — GERCEK SISTEMDE KULLANILMAZ
+ * TARAYICI ICI TTS (SpeechSynthesis) — ucretsiz, kotasiz yedek saglayici.
  * ============================================================================
- * Yerel TTS sunucusu (LOCAL_TTS_URL) henuz calismiyorsa arayuzun sessiz
- * kalmamasi icin tarayici ici SpeechSynthesis kullanilir. Bu yol yalnizca
- * gelistirme/onizleme kolayligidir; yerel motor baglandigi anda hic
- * cagrilmaz ve silinebilir.
+ * Yerel TTS sunucusu (LOCAL_TTS_URL) kapaliyken arayuzun sessiz kalmamasi
+ * icin kullanilir. Kullanici bunu Kullanim & Limitler panosundan kapatabilir;
+ * kapaliysa hicbir kosulda cagrilmaz.
  *
  * Gercek genlik verisi olmadigi icin dalga animasyonu hafif, dusuk yogunluklu
  * bir "konusuyor" gostergesi olarak surulur (AnalyserNode yolu degismez).
  */
-function previewFallbackSpeak(
+export function speakWithBrowser(
   text: string,
   language: Language,
   handlers: { onLevels?: (levels: number[]) => void; onEnded?: () => void },
