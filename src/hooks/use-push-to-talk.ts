@@ -21,6 +21,14 @@ type Options = {
   language: Language;
   enabled: boolean;
   onTranscript: (text: string) => void;
+  /**
+   * Saglayici yoneticisinin verdigi izinler. Kapali bir saglayici HICBIR
+   * kosulda cagrilmaz (`planStt()` — src/lib/services/voice.ts).
+   */
+  allowLocal?: boolean;
+  allowBrowser?: boolean;
+  /** Kullanim olcumu: hangi saglayici, kac saniye ses islendi. */
+  onUsage?: (serviceId: string, seconds: number) => void;
 };
 
 type SpeechRecognitionLike = {
@@ -47,7 +55,15 @@ function createRecognition(language: Language): SpeechRecognitionLike | null {
   return recognition;
 }
 
-export function usePushToTalk({ keyCode, language, enabled, onTranscript }: Options) {
+export function usePushToTalk({
+  keyCode,
+  language,
+  enabled,
+  onTranscript,
+  allowLocal = true,
+  allowBrowser = true,
+  onUsage,
+}: Options) {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
@@ -61,6 +77,7 @@ export function usePushToTalk({ keyCode, language, enabled, onTranscript }: Opti
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const fallbackTextRef = useRef("");
   const startingRef = useRef(false);
+  const startedAtRef = useRef(0);
 
   const cleanupMeter = useCallback(() => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
@@ -87,9 +104,16 @@ export function usePushToTalk({ keyCode, language, enabled, onTranscript }: Opti
 
   const start = useCallback(async () => {
     if (recorderRef.current || startingRef.current) return;
+    // Hicbir STT saglayicisina izin yoksa mikrofon HIC acilmaz.
+    if (!allowLocal && !allowBrowser) {
+      setError("stt-disabled");
+      return;
+    }
     startingRef.current = true;
     setError(null);
     fallbackTextRef.current = "";
+    startedAtRef.current = Date.now();
+
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -117,8 +141,8 @@ export function usePushToTalk({ keyCode, language, enabled, onTranscript }: Opti
       };
       rafRef.current = requestAnimationFrame(tick);
 
-      // GECICI onizleme yedegi: kayitla es zamanli tarayici ses tanima
-      const recognition = createRecognition(language);
+      // Tarayici ses tanima SAGLAYICISI — yalnizca izin verildiyse baslatilir.
+      const recognition = allowBrowser ? createRecognition(language) : null;
       recognitionRef.current = recognition;
       if (recognition) {
         recognition.onresult = (event) => {
@@ -136,6 +160,7 @@ export function usePushToTalk({ keyCode, language, enabled, onTranscript }: Opti
         }
       }
 
+
       const mimeType = MediaRecorder.isTypeSupported("audio/webm")
         ? "audio/webm"
         : MediaRecorder.isTypeSupported("audio/ogg")
@@ -152,39 +177,60 @@ export function usePushToTalk({ keyCode, language, enabled, onTranscript }: Opti
         streamRef.current = null;
         recorderRef.current = null;
 
+        const seconds = Math.max(0, (Date.now() - startedAtRef.current) / 1000);
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
         chunksRef.current = [];
+        // Bos/cok kisa kayit gonderilmez.
         if (blob.size < 1200) return;
 
         setTranscribing(true);
         try {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = String(reader.result);
-              resolve(result.slice(result.indexOf(",") + 1));
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
+          let localText = "";
+          let localUnavailable = false;
 
-          const response = await transcribeSpeech({
-            audioBase64: base64,
-            mimeType: blob.type || "audio/webm",
-            language,
-          });
+          if (allowLocal) {
+            const base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = String(reader.result);
+                resolve(result.slice(result.indexOf(",") + 1));
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
 
-          const text = response.text?.trim() || fallbackTextRef.current.trim();
-          if (text) onTranscript(text);
-          else if (response.fallback) setError("stt-unavailable");
+            const response = await transcribeSpeech({
+              audioBase64: base64,
+              mimeType: blob.type || "audio/webm",
+              language,
+            });
+            localText = response.text?.trim() ?? "";
+            localUnavailable = Boolean(response.fallback);
+            if (localText) onUsage?.("stt.local", seconds);
+          }
+
+          if (localText) {
+            onTranscript(localText);
+          } else {
+            const text = allowBrowser ? fallbackTextRef.current.trim() : "";
+            if (text) {
+              onUsage?.("stt.browser", seconds);
+              onTranscript(text);
+            } else if (localUnavailable || !allowLocal) {
+              setError("stt-unavailable");
+            }
+          }
         } catch {
-          const text = fallbackTextRef.current.trim();
-          if (text) onTranscript(text);
-          else setError("stt-failed");
+          const text = allowBrowser ? fallbackTextRef.current.trim() : "";
+          if (text) {
+            onUsage?.("stt.browser", seconds);
+            onTranscript(text);
+          } else setError("stt-failed");
         } finally {
           setTranscribing(false);
         }
       };
+
 
       recorder.start();
       recorderRef.current = recorder;
@@ -198,7 +244,7 @@ export function usePushToTalk({ keyCode, language, enabled, onTranscript }: Opti
     } finally {
       startingRef.current = false;
     }
-  }, [cleanupMeter, language, onTranscript]);
+  }, [allowBrowser, allowLocal, cleanupMeter, language, onTranscript, onUsage]);
 
   // Basili tut / birak
   useEffect(() => {

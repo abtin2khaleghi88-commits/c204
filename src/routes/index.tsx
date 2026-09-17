@@ -1,16 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Menu, Moon, Sun } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Activity, Menu, Moon, Sun } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Composer, type DraftPatch, type PendingFile } from "@/components/assistant/Composer";
 import { ConversationSidebar } from "@/components/assistant/ConversationSidebar";
 import { MemoryPanel } from "@/components/assistant/MemoryPanel";
 import { MessageList } from "@/components/assistant/MessageList";
 import { SettingsDialog } from "@/components/assistant/SettingsDialog";
+import { UsagePanel } from "@/components/assistant/UsagePanel";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { usePushToTalk } from "@/hooks/use-push-to-talk";
-import { streamChat, speak, type MemoryHit, type UiMessage } from "@/lib/assistant-client";
+import { streamChat, type MemoryHit, type UiMessage } from "@/lib/assistant-client";
 import type { PlaybackHandle } from "@/lib/audio-player";
 import {
   loadConversations,
@@ -23,6 +24,16 @@ import {
 } from "@/lib/chat-storage";
 import { defaultSettings } from "@/lib/chat-storage";
 import { t } from "@/lib/i18n";
+import type { AvailabilityMap } from "@/lib/services/provider-manager";
+import { loadUsageState, subscribeUsage } from "@/lib/services/usage-store";
+import {
+  loadAvailability,
+  planStt,
+  recordAiUsage,
+  recordMemoryUsage,
+  recordSttUsage,
+  speakViaProviders,
+} from "@/lib/services/voice";
 import {
   applyTheme,
   loadTheme,
@@ -64,11 +75,17 @@ function AssistantPage() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [isDark, setIsDark] = useState(false);
   const [draft, setDraft] = useState<DraftPatch | undefined>(undefined);
+  /** Saglayici erisilebilirligi (yerel uclar + tarayici yetenekleri). */
+  const [availability, setAvailability] = useState<AvailabilityMap>({});
+  /** Kullanim/kontrol durumu — kapali saglayici cagrilmasin diye izlenir. */
+  const [usageState, setUsageState] = useState(() => loadUsageState());
+  const [notice, setNotice] = useState<string | null>(null);
   const playbackRef = useRef<PlaybackHandle | null>(null);
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
 
@@ -85,6 +102,19 @@ function AssistantPage() {
     applyTheme(storedTheme);
     setIsDark(storedTheme === "dark" || (storedTheme === "system" && prefersDark()));
   }, []);
+
+  // Saglayici durumu: ilk yuklemede bir kez (gereksiz polling yok).
+  useEffect(() => {
+    void loadAvailability(true).then(setAvailability);
+    return subscribeUsage(() => setUsageState(loadUsageState()));
+  }, []);
+
+  const sttPlan = useMemo(
+    () => planStt(availability),
+    // usageState degistiginde plan yeniden hesaplanir (toggle'lar gercekten etki eder)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [availability, usageState],
+  );
 
   useEffect(() => {
     if (theme !== "system") return;
@@ -132,7 +162,10 @@ function AssistantPage() {
   const pushToTalk = usePushToTalk({
     keyCode: settings.pushToTalkKey,
     language,
-    enabled: settings.sttEnabled && !settingsOpen,
+    enabled: settings.sttEnabled && !settingsOpen && !usageOpen,
+    allowLocal: sttPlan.allowLocal,
+    allowBrowser: sttPlan.allowBrowser,
+    onUsage: recordSttUsage,
     onTranscript: useCallback(
       (text: string) => setDraft({ text, id: Date.now() }),
       [],
@@ -145,23 +178,27 @@ function AssistantPage() {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [conversations, thinking]);
 
+  /** TTS: saglayici yoneticisi secer, kapali saglayici cagrilmaz. */
   const playAudio = async (message: UiMessage) => {
     playbackRef.current?.stop();
     playbackRef.current = null;
     setSpeakingId(message.id);
-    try {
-      playbackRef.current = await speak(message.content, language, {
-        onLevels: setLevels,
-        onEnded: () => {
-          playbackRef.current = null;
-          setLevels([]);
-          setSpeakingId(null);
-        },
-      });
-    } catch {
+    const outcome = await speakViaProviders(message.content, language, availability, {
+      onLevels: setLevels,
+      onEnded: () => {
+        playbackRef.current = null;
+        setLevels([]);
+        setSpeakingId(null);
+      },
+    });
+    if (!outcome.ok) {
       setLevels([]);
       setSpeakingId(null);
+      setNotice(t(language, "voiceOff"));
+      return;
     }
+    playbackRef.current = outcome.handle;
+    if (outcome.fellBack) setNotice(t(language, "usedFallback"));
   };
 
   const stopAudio = () => {
