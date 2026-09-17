@@ -21,6 +21,14 @@ type Options = {
   language: Language;
   enabled: boolean;
   onTranscript: (text: string) => void;
+  /**
+   * Saglayici yoneticisinin verdigi izinler. Kapali bir saglayici HICBIR
+   * kosulda cagrilmaz (`planStt()` — src/lib/services/voice.ts).
+   */
+  allowLocal?: boolean;
+  allowBrowser?: boolean;
+  /** Kullanim olcumu: hangi saglayici, kac saniye ses islendi. */
+  onUsage?: (serviceId: string, seconds: number) => void;
 };
 
 type SpeechRecognitionLike = {
