@@ -103,6 +103,19 @@ function AssistantPage() {
     setIsDark(storedTheme === "dark" || (storedTheme === "system" && prefersDark()));
   }, []);
 
+  // Saglayici durumu: ilk yuklemede bir kez (gereksiz polling yok).
+  useEffect(() => {
+    void loadAvailability(true).then(setAvailability);
+    return subscribeUsage(() => setUsageState(loadUsageState()));
+  }, []);
+
+  const sttPlan = useMemo(
+    () => planStt(availability),
+    // usageState degistiginde plan yeniden hesaplanir (toggle'lar gercekten etki eder)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [availability, usageState],
+  );
+
   useEffect(() => {
     if (theme !== "system") return;
     return watchSystemTheme(() => {
