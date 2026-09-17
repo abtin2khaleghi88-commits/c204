@@ -55,7 +55,15 @@ function createRecognition(language: Language): SpeechRecognitionLike | null {
   return recognition;
 }
 
-export function usePushToTalk({ keyCode, language, enabled, onTranscript }: Options) {
+export function usePushToTalk({
+  keyCode,
+  language,
+  enabled,
+  onTranscript,
+  allowLocal = true,
+  allowBrowser = true,
+  onUsage,
+}: Options) {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
@@ -69,6 +77,7 @@ export function usePushToTalk({ keyCode, language, enabled, onTranscript }: Opti
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const fallbackTextRef = useRef("");
   const startingRef = useRef(false);
+  const startedAtRef = useRef(0);
 
   const cleanupMeter = useCallback(() => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
