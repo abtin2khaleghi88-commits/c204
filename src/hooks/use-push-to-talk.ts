@@ -177,39 +177,60 @@ export function usePushToTalk({
         streamRef.current = null;
         recorderRef.current = null;
 
+        const seconds = Math.max(0, (Date.now() - startedAtRef.current) / 1000);
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
         chunksRef.current = [];
+        // Bos/cok kisa kayit gonderilmez.
         if (blob.size < 1200) return;
 
         setTranscribing(true);
         try {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = String(reader.result);
-              resolve(result.slice(result.indexOf(",") + 1));
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
+          let localText = "";
+          let localUnavailable = false;
 
-          const response = await transcribeSpeech({
-            audioBase64: base64,
-            mimeType: blob.type || "audio/webm",
-            language,
-          });
+          if (allowLocal) {
+            const base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = String(reader.result);
+                resolve(result.slice(result.indexOf(",") + 1));
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
 
-          const text = response.text?.trim() || fallbackTextRef.current.trim();
-          if (text) onTranscript(text);
-          else if (response.fallback) setError("stt-unavailable");
+            const response = await transcribeSpeech({
+              audioBase64: base64,
+              mimeType: blob.type || "audio/webm",
+              language,
+            });
+            localText = response.text?.trim() ?? "";
+            localUnavailable = Boolean(response.fallback);
+            if (localText) onUsage?.("stt.local", seconds);
+          }
+
+          if (localText) {
+            onTranscript(localText);
+          } else {
+            const text = allowBrowser ? fallbackTextRef.current.trim() : "";
+            if (text) {
+              onUsage?.("stt.browser", seconds);
+              onTranscript(text);
+            } else if (localUnavailable || !allowLocal) {
+              setError("stt-unavailable");
+            }
+          }
         } catch {
-          const text = fallbackTextRef.current.trim();
-          if (text) onTranscript(text);
-          else setError("stt-failed");
+          const text = allowBrowser ? fallbackTextRef.current.trim() : "";
+          if (text) {
+            onUsage?.("stt.browser", seconds);
+            onTranscript(text);
+          } else setError("stt-failed");
         } finally {
           setTranscribing(false);
         }
       };
+
 
       recorder.start();
       recorderRef.current = recorder;
