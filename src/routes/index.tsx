@@ -1,16 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Menu, Moon, Sun } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Activity, Menu, Moon, Sun } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Composer, type DraftPatch, type PendingFile } from "@/components/assistant/Composer";
 import { ConversationSidebar } from "@/components/assistant/ConversationSidebar";
 import { MemoryPanel } from "@/components/assistant/MemoryPanel";
 import { MessageList } from "@/components/assistant/MessageList";
 import { SettingsDialog } from "@/components/assistant/SettingsDialog";
+import { UsagePanel } from "@/components/assistant/UsagePanel";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { usePushToTalk } from "@/hooks/use-push-to-talk";
-import { streamChat, speak, type MemoryHit, type UiMessage } from "@/lib/assistant-client";
+import { streamChat, type MemoryHit, type UiMessage } from "@/lib/assistant-client";
 import type { PlaybackHandle } from "@/lib/audio-player";
 import {
   loadConversations,
@@ -23,6 +24,16 @@ import {
 } from "@/lib/chat-storage";
 import { defaultSettings } from "@/lib/chat-storage";
 import { t } from "@/lib/i18n";
+import type { AvailabilityMap } from "@/lib/services/provider-manager";
+import { loadUsageState, subscribeUsage } from "@/lib/services/usage-store";
+import {
+  loadAvailability,
+  planStt,
+  recordAiUsage,
+  recordMemoryUsage,
+  recordSttUsage,
+  speakViaProviders,
+} from "@/lib/services/voice";
 import {
   applyTheme,
   loadTheme,
