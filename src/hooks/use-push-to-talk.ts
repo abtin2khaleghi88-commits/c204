@@ -104,9 +104,16 @@ export function usePushToTalk({
 
   const start = useCallback(async () => {
     if (recorderRef.current || startingRef.current) return;
+    // Hicbir STT saglayicisina izin yoksa mikrofon HIC acilmaz.
+    if (!allowLocal && !allowBrowser) {
+      setError("stt-disabled");
+      return;
+    }
     startingRef.current = true;
     setError(null);
     fallbackTextRef.current = "";
+    startedAtRef.current = Date.now();
+
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
