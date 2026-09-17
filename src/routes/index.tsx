@@ -75,11 +75,17 @@ function AssistantPage() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [levels, setLevels] = useState<number[]>([]);
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [isDark, setIsDark] = useState(false);
   const [draft, setDraft] = useState<DraftPatch | undefined>(undefined);
+  /** Saglayici erisilebilirligi (yerel uclar + tarayici yetenekleri). */
+  const [availability, setAvailability] = useState<AvailabilityMap>({});
+  /** Kullanim/kontrol durumu — kapali saglayici cagrilmasin diye izlenir. */
+  const [usageState, setUsageState] = useState(() => loadUsageState());
+  const [notice, setNotice] = useState<string | null>(null);
   const playbackRef = useRef<PlaybackHandle | null>(null);
   const scrollAnchorRef = useRef<HTMLDivElement | null>(null);
 
