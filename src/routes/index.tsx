@@ -162,7 +162,10 @@ function AssistantPage() {
   const pushToTalk = usePushToTalk({
     keyCode: settings.pushToTalkKey,
     language,
-    enabled: settings.sttEnabled && !settingsOpen,
+    enabled: settings.sttEnabled && !settingsOpen && !usageOpen,
+    allowLocal: sttPlan.allowLocal,
+    allowBrowser: sttPlan.allowBrowser,
+    onUsage: recordSttUsage,
     onTranscript: useCallback(
       (text: string) => setDraft({ text, id: Date.now() }),
       [],
@@ -175,23 +178,27 @@ function AssistantPage() {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [conversations, thinking]);
 
+  /** TTS: saglayici yoneticisi secer, kapali saglayici cagrilmaz. */
   const playAudio = async (message: UiMessage) => {
     playbackRef.current?.stop();
     playbackRef.current = null;
     setSpeakingId(message.id);
-    try {
-      playbackRef.current = await speak(message.content, language, {
-        onLevels: setLevels,
-        onEnded: () => {
-          playbackRef.current = null;
-          setLevels([]);
-          setSpeakingId(null);
-        },
-      });
-    } catch {
+    const outcome = await speakViaProviders(message.content, language, availability, {
+      onLevels: setLevels,
+      onEnded: () => {
+        playbackRef.current = null;
+        setLevels([]);
+        setSpeakingId(null);
+      },
+    });
+    if (!outcome.ok) {
       setLevels([]);
       setSpeakingId(null);
+      setNotice(t(language, "voiceOff"));
+      return;
     }
+    playbackRef.current = outcome.handle;
+    if (outcome.fellBack) setNotice(t(language, "usedFallback"));
   };
 
   const stopAudio = () => {
