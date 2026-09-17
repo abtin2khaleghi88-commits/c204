@@ -244,7 +244,7 @@ export function usePushToTalk({
     } finally {
       startingRef.current = false;
     }
-  }, [cleanupMeter, language, onTranscript]);
+  }, [allowBrowser, allowLocal, cleanupMeter, language, onTranscript, onUsage]);
 
   // Basili tut / birak
   useEffect(() => {
