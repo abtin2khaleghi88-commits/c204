@@ -141,8 +141,8 @@ export function usePushToTalk({
       };
       rafRef.current = requestAnimationFrame(tick);
 
-      // GECICI onizleme yedegi: kayitla es zamanli tarayici ses tanima
-      const recognition = createRecognition(language);
+      // Tarayici ses tanima SAGLAYICISI — yalnizca izin verildiyse baslatilir.
+      const recognition = allowBrowser ? createRecognition(language) : null;
       recognitionRef.current = recognition;
       if (recognition) {
         recognition.onresult = (event) => {
@@ -159,6 +159,7 @@ export function usePushToTalk({
           /* yoksay */
         }
       }
+
 
       const mimeType = MediaRecorder.isTypeSupported("audio/webm")
         ? "audio/webm"
