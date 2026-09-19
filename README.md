@@ -313,3 +313,38 @@ Bağlantı haritası (`src/components/assistant/MemoryGraph.tsx`) canvas 2D üze
 gösterir, bir düğüme gelince/tıklayınca bağlantılı kayıtlar vurgulanıp diğerleri soluklaşır;
 tekerlek ile zoom, sürükleyerek pan yapılır. Tüm çizim tek `requestAnimationFrame` döngüsünde
 olduğu için çok sayıda kayıtta da akıcı kalır.
+
+---
+
+## Kullanim & Limitler / Saglayici Yonetimi (Usage & Limits)
+
+Sol menudeki **Kullanim & Limitler** panosu islevsel bir denetim masasidir:
+her gercek servis icin saglayici turu (yerel / tarayici / cevrimici), durum,
+gunluk + aylik kullanim ve sifirlanma zamani gosterilir.
+
+### Katmanlar
+
+| Dosya | Rol |
+| --- | --- |
+| `src/lib/services/types.ts` | `ServiceDefinition`, `UsageSnapshot`, birim/donem turleri |
+| `src/lib/services/registry.ts` | Gercek servislerin kaydi (sahte servis YOK) |
+| `src/lib/services/usage-store.ts` | `localStorage: c204.usage.v1` — toggle, limit, sayaclar |
+| `src/lib/services/provider-manager.ts` | `selectProvider()` — yetenek -> saglayici -> erisim -> kota |
+| `src/lib/services/voice.ts` | `speakViaProviders()`, `planStt()`, kullanim kaydi |
+| `src/components/assistant/UsagePanel.tsx` | Panonun arayuzu |
+
+### Kurallar
+
+- **Kota uydurulmaz.** Saglayici kalan kotayi bildirmiyorsa kart
+  "yerel sayim" der. Elle girilen limitler "kullanici tanimli tahmin"
+  etiketiyle gosterilir; resmi kota olarak sunulmaz.
+- **Kapali saglayici cagrilmaz.** `planStt()` izin vermezse mikrofon hic
+  acilmaz; `speakViaProviders()` kapali motoru atlar ve yedege gecerken
+  bunu arayuzde bildirir.
+- **Birimler servise gore:** AI = istek, TTS = karakter, STT = ses saniyesi,
+  hafiza = vektorlestirme cagrisi.
+- **Yerel AI (Ollama / Qwen3.5 4B) icin cevrimici kota yoktur;** sinir yerel
+  donanim ve model hizidir — "sinirsiz" iddiasi yapilmaz.
+- **Kalicilik:** toggle'lar, saglayici modlari (otomatik / sadece yerel /
+  elle), elle limitler ve sayaclar `localStorage`'da tutulur; yeni backend
+  veya veritabani eklenmez.
