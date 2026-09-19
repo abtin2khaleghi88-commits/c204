@@ -414,6 +414,10 @@ function AssistantPage() {
         setSettingsOpen(true);
         setMobileNavOpen(false);
       }}
+      onOpenUsage={() => {
+        setUsageOpen(true);
+        setMobileNavOpen(false);
+      }}
     />
   );
 
