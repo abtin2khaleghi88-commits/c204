@@ -35,8 +35,6 @@ export function SettingsDialog({
   const language = settings.language;
   const [capturing, setCapturing] = useState(false);
 
-
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -92,8 +90,6 @@ export function SettingsDialog({
               ))}
             </div>
           </div>
-
-
 
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="auto-speak">{t(language, "autoSpeak")}</Label>
@@ -151,7 +147,6 @@ export function SettingsDialog({
               onCheckedChange={(checked) => onChange({ ...settings, useShortTerm: checked })}
             />
           </div>
-
 
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="long-term">{t(language, "useLongTerm")}</Label>

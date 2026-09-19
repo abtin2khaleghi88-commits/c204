@@ -79,9 +79,7 @@ export function PulseRing({
         </span>
       </div>
 
-      {label ? (
-        <span className="hud-text text-[11px] text-primary/80">{label}</span>
-      ) : null}
+      {label ? <span className="hud-text text-[11px] text-primary/80">{label}</span> : null}
     </div>
   );
 }
@@ -117,13 +115,7 @@ export function VoiceWave({
 }
 
 /** Asistan avatari - konusan sesin genligine gore parildar. */
-export function AssistantOrb({
-  speaking,
-  level = 0,
-}: {
-  speaking: boolean;
-  level?: number;
-}) {
+export function AssistantOrb({ speaking, level = 0 }: { speaking: boolean; level?: number }) {
   return (
     <div className="relative h-9 w-9 shrink-0">
       {speaking && (

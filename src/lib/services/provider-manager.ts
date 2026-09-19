@@ -36,8 +36,7 @@ export type Selection =
 /** Tarayici saglayicilari icin istemci tarafi yetenek kontrolu. */
 export function browserAvailability(): AvailabilityMap {
   if (typeof window === "undefined") return {};
-  const hasSpeech =
-    "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
+  const hasSpeech = "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
   return {
     "stt.browser": hasSpeech ? "available" : "unavailable",
     "tts.browser": "speechSynthesis" in window ? "available" : "unavailable",
@@ -98,7 +97,8 @@ export function selectProvider(
     const status = availability[serviceId] ?? "unknown";
     if (status === "not_configured" || status === "unavailable") {
       if (serviceId === preferredId) {
-        fallbackReason = status === "not_configured" ? "provider_not_configured" : "provider_unavailable";
+        fallbackReason =
+          status === "not_configured" ? "provider_not_configured" : "provider_unavailable";
         fallbackService = serviceId;
       }
       continue;

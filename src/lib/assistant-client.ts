@@ -5,7 +5,6 @@
 
 import { playAudioSource, type PlaybackHandle } from "@/lib/audio-player";
 
-
 export type Language = "tr" | "en";
 
 export type UiMessage = {
@@ -178,7 +177,6 @@ export function transcribeSpeech(input: {
   });
 }
 
-
 /**
  * SERVIS DURUMU: yerel uclarin yapilandirmasi ve (istege bagli) erisilebilirligi.
  * `probe: true` gonderilirse kisa zaman asimli gercek baglanti denemesi yapilir.
@@ -278,9 +276,7 @@ export function speakWithBrowser(
   const bands = 9;
   const timer = window.setInterval(() => {
     if (stopped) return;
-    handlers.onLevels?.(
-      Array.from({ length: bands }, () => 0.12 + Math.random() * 0.18),
-    );
+    handlers.onLevels?.(Array.from({ length: bands }, () => 0.12 + Math.random() * 0.18));
   }, 120);
 
   const finish = () => {

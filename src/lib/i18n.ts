@@ -72,8 +72,7 @@ const dict = {
     sttHint: "tusunu basili tutun ve konusun",
     sttError: "Mikrofon veya ses tanima kullanilamadi.",
     usagePanel: "Kullanim & Limitler",
-    usageSubtitle:
-      "Saglayici kullanimini, kota bilgisini ve yetenek durumunu izleyin.",
+    usageSubtitle: "Saglayici kullanimini, kota bilgisini ve yetenek durumunu izleyin.",
     sumActive: "Aktif servis",
     sumDisabled: "Kapali",
     sumUnavailable: "Erisilemez",

@@ -17,7 +17,12 @@ import {
 } from "@/lib/assistant-client";
 import type { PlaybackHandle } from "@/lib/audio-player";
 
-import { browserAvailability, selectProvider, type AvailabilityMap, type Selection } from "./provider-manager";
+import {
+  browserAvailability,
+  selectProvider,
+  type AvailabilityMap,
+  type Selection,
+} from "./provider-manager";
 import { loadUsageState, recordUsage } from "./usage-store";
 
 /** Yerel uclarin durumu + tarayici yetenekleri. `probe` gercek baglanti dener. */

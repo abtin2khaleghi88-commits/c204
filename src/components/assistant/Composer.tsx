@@ -257,7 +257,6 @@ export function Composer({
           </Button>
         </div>
 
-
         <div className="flex items-center gap-2">
           <span className="hud-text hidden text-[10px] text-muted-foreground sm:inline">
             {t(language, "sendHint")}

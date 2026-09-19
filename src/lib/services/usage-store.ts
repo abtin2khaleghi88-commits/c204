@@ -230,7 +230,15 @@ export function warningLevel(serviceId: string, state = loadUsageState()): Warni
     if (!snapshot.limit) continue;
     const ratio = snapshot.used / snapshot.limit;
     const level: WarningLevel =
-      ratio >= 1 ? "exhausted" : ratio >= 0.9 ? "critical" : ratio >= 0.75 ? "warning" : ratio >= 0.5 ? "notice" : "normal";
+      ratio >= 1
+        ? "exhausted"
+        : ratio >= 0.9
+          ? "critical"
+          : ratio >= 0.75
+            ? "warning"
+            : ratio >= 0.5
+              ? "notice"
+              : "normal";
     if (order.indexOf(level) > order.indexOf(worst)) worst = level;
   }
   return worst;
