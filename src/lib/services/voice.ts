@@ -92,7 +92,6 @@ export function planStt(availability: AvailabilityMap): {
   const localOk =
     (state.services["stt.local"]?.enabled ?? true) &&
     availability["stt.local"] !== "not_configured" &&
-    availability["stt.local"] !== "unavailable" &&
     (!manual || picked === "stt.local");
 
   const browserOk =
