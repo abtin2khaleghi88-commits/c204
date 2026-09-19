@@ -214,6 +214,11 @@ function AssistantPage() {
     history: { role: "user" | "assistant"; content: string }[],
     attachments: { name: string; excerpt: string }[],
   ) => {
+    // AI yetenegi kapaliysa istek HIC gonderilmez.
+    if (!usageState.features.ai) {
+      setNotice(t(language, "aiOff"));
+      return;
+    }
     const assistantId = `m-${Date.now()}-a`;
     const useMemory = settings.useShortTerm || settings.useLongTerm;
     setThinking(true);
