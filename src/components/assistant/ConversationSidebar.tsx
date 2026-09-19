@@ -26,6 +26,7 @@ export function ConversationSidebar({
   onDelete,
   onOpenMemory,
   onOpenSettings,
+  onOpenUsage,
 }: Props) {
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl">
