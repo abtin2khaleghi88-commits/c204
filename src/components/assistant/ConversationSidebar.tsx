@@ -14,6 +14,7 @@ type Props = {
   onDelete: (id: string) => void;
   onOpenMemory: () => void;
   onOpenSettings: () => void;
+  onOpenUsage: () => void;
 };
 
 export function ConversationSidebar({
