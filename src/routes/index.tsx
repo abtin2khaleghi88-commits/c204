@@ -524,6 +524,13 @@ function AssistantPage() {
       </main>
 
       <MemoryPanel language={language} open={memoryOpen} onOpenChange={setMemoryOpen} />
+      <UsagePanel
+        language={language}
+        open={usageOpen}
+        onOpenChange={setUsageOpen}
+        availability={availability}
+        onRefresh={async () => setAvailability(await loadAvailability(true))}
+      />
       <SettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
