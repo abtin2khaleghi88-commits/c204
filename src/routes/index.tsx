@@ -214,6 +214,11 @@ function AssistantPage() {
     history: { role: "user" | "assistant"; content: string }[],
     attachments: { name: string; excerpt: string }[],
   ) => {
+    // AI yetenegi kapaliysa istek HIC gonderilmez.
+    if (!usageState.features.ai) {
+      setNotice(t(language, "aiOff"));
+      return;
+    }
     const assistantId = `m-${Date.now()}-a`;
     const useMemory = settings.useShortTerm || settings.useLongTerm;
     setThinking(true);
@@ -257,6 +262,7 @@ function AssistantPage() {
         {
           onMemory: (payload: { hits: MemoryHit[]; scanned: number; tookMs: number }) => {
             setMemoryScanning(false);
+            if (useMemory) recordMemoryUsage();
             patch({
               memoryHits: payload.hits,
               memoryScanned: payload.scanned,
@@ -268,7 +274,10 @@ function AssistantPage() {
             text += delta;
             patch({}, delta);
           },
-          onDone: (payload) => patch({ source: payload.source }),
+          onDone: (payload) => {
+            recordAiUsage(payload.source);
+            patch({ source: payload.source });
+          },
         },
       );
 
@@ -405,6 +414,10 @@ function AssistantPage() {
         setSettingsOpen(true);
         setMobileNavOpen(false);
       }}
+      onOpenUsage={() => {
+        setUsageOpen(true);
+        setMobileNavOpen(false);
+      }}
     />
   );
 
@@ -438,6 +451,16 @@ function AssistantPage() {
               variant="ghost"
               size="icon"
               className="h-8 w-8 rounded-full"
+              aria-label={t(language, "usagePanel")}
+              title={t(language, "usagePanel")}
+              onClick={() => setUsageOpen(true)}
+            >
+              <Activity className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
               aria-label={t(language, "theme")}
               title={t(language, "theme")}
               onClick={() => updateTheme(isDark ? "light" : "dark")}
@@ -466,6 +489,19 @@ function AssistantPage() {
 
         <div className="px-3 pb-4 sm:px-4 sm:pb-5">
           <div className="mx-auto max-w-3xl">
+            {(notice || pushToTalk.error) && (
+              <button
+                type="button"
+                onClick={() => setNotice(null)}
+                className="hud-text mb-2 block w-full rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-left text-[11px] text-primary"
+              >
+                {pushToTalk.error === "stt-disabled"
+                  ? t(language, "sttOff")
+                  : pushToTalk.error
+                    ? t(language, "sttError")
+                    : notice}
+              </button>
+            )}
             <Composer
               language={language}
               disabled={thinking}
@@ -488,6 +524,13 @@ function AssistantPage() {
       </main>
 
       <MemoryPanel language={language} open={memoryOpen} onOpenChange={setMemoryOpen} />
+      <UsagePanel
+        language={language}
+        open={usageOpen}
+        onOpenChange={setUsageOpen}
+        availability={availability}
+        onRefresh={async () => setAvailability(await loadAvailability(true))}
+      />
       <SettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}

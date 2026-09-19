@@ -1,4 +1,4 @@
-import { MessageSquare, Plus, Brain, Settings2, Trash2 } from "lucide-react";
+import { Activity, MessageSquare, Plus, Brain, Settings2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { Language } from "@/lib/assistant-client";
@@ -14,6 +14,7 @@ type Props = {
   onDelete: (id: string) => void;
   onOpenMemory: () => void;
   onOpenSettings: () => void;
+  onOpenUsage: () => void;
 };
 
 export function ConversationSidebar({
@@ -25,6 +26,7 @@ export function ConversationSidebar({
   onDelete,
   onOpenMemory,
   onOpenSettings,
+  onOpenUsage,
 }: Props) {
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl">
@@ -92,6 +94,10 @@ export function ConversationSidebar({
         <Button variant="ghost" className="w-full justify-start gap-2" onClick={onOpenMemory}>
           <Brain className="h-4 w-4 text-primary" />
           {t(language, "memoryPanel")}
+        </Button>
+        <Button variant="ghost" className="w-full justify-start gap-2" onClick={onOpenUsage}>
+          <Activity className="h-4 w-4 text-primary" />
+          {t(language, "usagePanel")}
         </Button>
         <Button variant="ghost" className="w-full justify-start gap-2" onClick={onOpenSettings}>
           <Settings2 className="h-4 w-4 text-primary" />
