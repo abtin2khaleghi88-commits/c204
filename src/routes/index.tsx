@@ -262,6 +262,7 @@ function AssistantPage() {
         {
           onMemory: (payload: { hits: MemoryHit[]; scanned: number; tookMs: number }) => {
             setMemoryScanning(false);
+            if (useMemory) recordMemoryUsage();
             patch({
               memoryHits: payload.hits,
               memoryScanned: payload.scanned,
@@ -273,7 +274,10 @@ function AssistantPage() {
             text += delta;
             patch({}, delta);
           },
-          onDone: (payload) => patch({ source: payload.source }),
+          onDone: (payload) => {
+            recordAiUsage(payload.source);
+            patch({ source: payload.source });
+          },
         },
       );
 
