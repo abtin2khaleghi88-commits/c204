@@ -166,12 +166,8 @@ function AssistantPage() {
     allowLocal: sttPlan.allowLocal,
     allowBrowser: sttPlan.allowBrowser,
     onUsage: recordSttUsage,
-    onTranscript: useCallback(
-      (text: string) => setDraft({ text, id: Date.now() }),
-      [],
-    ),
+    onTranscript: useCallback((text: string) => setDraft({ text, id: Date.now() }), []),
   });
-
 
   // Yeni mesajlarda otomatik kaydirma
   useEffect(() => {
@@ -520,7 +516,6 @@ function AssistantPage() {
             />
           </div>
         </div>
-
       </main>
 
       <MemoryPanel language={language} open={memoryOpen} onOpenChange={setMemoryOpen} />

@@ -15,8 +15,31 @@
 export const EMBEDDING_DIM = 256;
 
 const STOPWORDS = new Set([
-  "ve", "ile", "bir", "bu", "da", "de", "icin", "ama", "cok", "gibi", "the", "a", "an",
-  "and", "or", "of", "to", "in", "is", "are", "for", "with", "on", "that", "it",
+  "ve",
+  "ile",
+  "bir",
+  "bu",
+  "da",
+  "de",
+  "icin",
+  "ama",
+  "cok",
+  "gibi",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "of",
+  "to",
+  "in",
+  "is",
+  "are",
+  "for",
+  "with",
+  "on",
+  "that",
+  "it",
 ]);
 
 function normalize(input: string): string {
@@ -43,7 +66,9 @@ function hash(token: string, salt: number): number {
 }
 
 function tokenize(text: string): string[] {
-  const words = normalize(text).split(" ").filter((w) => w.length > 1 && !STOPWORDS.has(w));
+  const words = normalize(text)
+    .split(" ")
+    .filter((w) => w.length > 1 && !STOPWORDS.has(w));
   const tokens: string[] = [];
   for (const word of words) {
     const stem = word.slice(0, 6);

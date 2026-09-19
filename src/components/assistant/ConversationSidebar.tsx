@@ -35,7 +35,9 @@ export function ConversationSidebar({
           C2
         </span>
         <div className="leading-tight">
-          <p className="hud-title text-sm font-semibold text-sidebar-foreground">{t(language, "appName")}</p>
+          <p className="hud-title text-sm font-semibold text-sidebar-foreground">
+            {t(language, "appName")}
+          </p>
           <p className="hud-text text-[10px] text-primary/70">offline · local</p>
         </div>
       </div>

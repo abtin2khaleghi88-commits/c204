@@ -17,7 +17,12 @@ import {
 } from "@/lib/assistant-client";
 import type { PlaybackHandle } from "@/lib/audio-player";
 
-import { browserAvailability, selectProvider, type AvailabilityMap, type Selection } from "./provider-manager";
+import {
+  browserAvailability,
+  selectProvider,
+  type AvailabilityMap,
+  type Selection,
+} from "./provider-manager";
 import { loadUsageState, recordUsage } from "./usage-store";
 
 /** Yerel uclarin durumu + tarayici yetenekleri. `probe` gercek baglanti dener. */
@@ -80,20 +85,28 @@ export function planStt(availability: AvailabilityMap): {
 } {
   const state = loadUsageState();
   const selection = selectProvider("stt", availability, state);
+
+  // Yetenek kapali -> hicbir motor calistirilmaz (mikrofon bile acilmaz).
+  if (!state.features.stt) {
+    return { allowLocal: false, allowBrowser: false, selection };
+  }
+
+  const manual = state.modes.stt === "manual";
+  const picked = state.manualProvider.stt;
+
   const localOk =
-    state.features.stt &&
     (state.services["stt.local"]?.enabled ?? true) &&
-    availability["stt.local"] !== "not_configured";
+    availability["stt.local"] !== "not_configured" &&
+    (!manual || picked === "stt.local");
+
   const browserOk =
-    state.features.stt &&
     (state.services["stt.browser"]?.enabled ?? true) &&
     availability["stt.browser"] !== "unavailable" &&
-    state.modes.stt !== "manual";
-  return {
-    allowLocal: Boolean(localOk),
-    allowBrowser: Boolean(browserOk) || state.manualProvider.stt === "stt.browser",
-    selection,
-  };
+    availability["stt.browser"] !== "not_configured" &&
+    state.modes.stt !== "local_only" &&
+    (!manual || picked === "stt.browser");
+
+  return { allowLocal: Boolean(localOk), allowBrowser: Boolean(browserOk), selection };
 }
 
 /** STT kullanimini (islenen ses saniyesi) kaydeder. */

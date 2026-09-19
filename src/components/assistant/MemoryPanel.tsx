@@ -59,9 +59,7 @@ export function MemoryPanel({ language, open, onOpenChange }: Props) {
       const matchesCategory = category === "all" || record.category === category;
       const matchesQuery =
         needle.length === 0 ||
-        `${record.title} ${record.content} ${record.tags.join(" ")}`
-          .toLowerCase()
-          .includes(needle);
+        `${record.title} ${record.content} ${record.tags.join(" ")}`.toLowerCase().includes(needle);
       return matchesCategory && matchesQuery;
     });
   }, [records, query, category]);

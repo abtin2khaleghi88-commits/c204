@@ -8,7 +8,18 @@
  * ============================================================================
  */
 
-import { Activity, ChevronDown, Cpu, Globe, Info, Laptop, Mic, RotateCcw, Volume2, Waves } from "lucide-react";
+import {
+  Activity,
+  ChevronDown,
+  Cpu,
+  Globe,
+  Info,
+  Laptop,
+  Mic,
+  RotateCcw,
+  Volume2,
+  Waves,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -105,8 +116,10 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
     const level = warningLevel(service.id, state);
     if (level === "exhausted") return { key: "statusLimitReached", tone: "danger" } as const;
     const availabilityValue = availability[service.id] ?? "unknown";
-    if (availabilityValue === "not_configured") return { key: "statusNotConfigured", tone: "muted" } as const;
-    if (availabilityValue === "unavailable") return { key: "statusUnavailable", tone: "danger" } as const;
+    if (availabilityValue === "not_configured")
+      return { key: "statusNotConfigured", tone: "muted" } as const;
+    if (availabilityValue === "unavailable")
+      return { key: "statusUnavailable", tone: "danger" } as const;
     if (availabilityValue === "unknown") return { key: "statusUnknown", tone: "muted" } as const;
     return { key: "statusAvailable", tone: "ok" } as const;
   };
@@ -121,10 +134,12 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
       const status = statusOf(service);
       if (status.key === "statusAvailable") active += 1;
       if (status.key === "statusDisabled" || status.key === "featureOff") disabled += 1;
-      if (status.key === "statusUnavailable" || status.key === "statusNotConfigured") unavailable += 1;
+      if (status.key === "statusUnavailable" || status.key === "statusNotConfigured")
+        unavailable += 1;
       if (service.providerKind === "local") localOnly += 1;
       const entry = state.services[service.id];
-      if (entry?.manualDailyLimit || entry?.manualMonthlyLimit || service.officialLimit) limited += 1;
+      if (entry?.manualDailyLimit || entry?.manualMonthlyLimit || service.officialLimit)
+        limited += 1;
     }
     return { active, disabled, unavailable, localOnly, limited };
   }, [state, availability]);
@@ -209,7 +224,12 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
           <p className="hud-text text-[10px] text-muted-foreground opacity-80">
             {t(language, "honestyNote")}
           </p>
-          <Button size="sm" variant="secondary" className="rounded-full" onClick={() => void refresh()}>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="rounded-full"
+            onClick={() => void refresh()}
+          >
             <RotateCcw className={"mr-1.5 h-3.5 w-3.5 " + (refreshing ? "animate-spin" : "")} />
             {t(language, "checkNow")}
           </Button>
@@ -226,7 +246,14 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
                 <div className="flex items-center justify-between gap-3">
                   <Label className="flex items-center gap-2 text-xs">
                     <Icon className="h-3.5 w-3.5 text-primary" />
-                    {t(language, feature === "ai" ? "featureAi" : feature === "stt" ? "featureStt" : "featureTts")}
+                    {t(
+                      language,
+                      feature === "ai"
+                        ? "featureAi"
+                        : feature === "stt"
+                          ? "featureStt"
+                          : "featureTts",
+                    )}
                   </Label>
                   <Switch
                     checked={state.features[feature]}
@@ -244,7 +271,11 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
                     >
                       {t(
                         language,
-                        mode === "auto" ? "modeAuto" : mode === "local_only" ? "modeLocalOnly" : "modeManual",
+                        mode === "auto"
+                          ? "modeAuto"
+                          : mode === "local_only"
+                            ? "modeLocalOnly"
+                            : "modeManual",
                       )}
                     </Button>
                   ))}
@@ -253,7 +284,9 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
                       <Button
                         key={provider.id}
                         size="sm"
-                        variant={state.manualProvider[feature] === provider.id ? "default" : "ghost"}
+                        variant={
+                          state.manualProvider[feature] === provider.id ? "default" : "ghost"
+                        }
                         className="hud-text rounded-full px-3 text-[10px]"
                         onClick={() => setManualProvider(feature, provider.id)}
                       >
@@ -339,7 +372,10 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
                       >
                         <div className="flex items-center justify-between">
                           <span className="hud-text text-[10px] text-muted-foreground">
-                            {t(language, snapshot.period === "daily" ? "periodDaily" : "periodMonthly")}
+                            {t(
+                              language,
+                              snapshot.period === "daily" ? "periodDaily" : "periodMonthly",
+                            )}
                           </span>
                           <span className="hud-text text-[10px] text-primary">
                             {snapshot.used} {unitLabel(language, snapshot.unit)}
@@ -393,7 +429,9 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
                     <Info className="mr-1 h-3 w-3" />
                     {t(language, "details")}
                     <ChevronDown
-                      className={"ml-1 h-3 w-3 transition-transform " + (isOpen ? "rotate-180" : "")}
+                      className={
+                        "ml-1 h-3 w-3 transition-transform " + (isOpen ? "rotate-180" : "")
+                      }
                     />
                   </Button>
                 </div>
@@ -405,11 +443,15 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
                     </p>
                     <dl className="grid gap-1.5 text-[10px] sm:grid-cols-2">
                       <div>
-                        <dt className="hud-text text-muted-foreground">{t(language, "quotaUnit")}</dt>
+                        <dt className="hud-text text-muted-foreground">
+                          {t(language, "quotaUnit")}
+                        </dt>
                         <dd>{unitLabel(language, service.quotaUnit)}</dd>
                       </div>
                       <div>
-                        <dt className="hud-text text-muted-foreground">{t(language, "limitPeriod")}</dt>
+                        <dt className="hud-text text-muted-foreground">
+                          {t(language, "limitPeriod")}
+                        </dt>
                         <dd>
                           {service.limitPeriod === "none"
                             ? t(language, "periodNone")
@@ -419,11 +461,15 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
                         </dd>
                       </div>
                       <div>
-                        <dt className="hud-text text-muted-foreground">{t(language, "officialQuota")}</dt>
+                        <dt className="hud-text text-muted-foreground">
+                          {t(language, "officialQuota")}
+                        </dt>
                         <dd>{service.officialLimit ?? t(language, "quotaUnavailable")}</dd>
                       </div>
                       <div>
-                        <dt className="hud-text text-muted-foreground">{t(language, "dataPath")}</dt>
+                        <dt className="hud-text text-muted-foreground">
+                          {t(language, "dataPath")}
+                        </dt>
                         <dd>
                           {t(
                             language,
@@ -436,11 +482,15 @@ export function UsagePanel({ language, open, onOpenChange, availability, onRefre
                         </dd>
                       </div>
                       <div>
-                        <dt className="hud-text text-muted-foreground">{t(language, "fallback")}</dt>
+                        <dt className="hud-text text-muted-foreground">
+                          {t(language, "fallback")}
+                        </dt>
                         <dd>{service.fallbackProviderId ?? t(language, "noFallback")}</dd>
                       </div>
                       <div>
-                        <dt className="hud-text text-muted-foreground">{t(language, "trackingMode")}</dt>
+                        <dt className="hud-text text-muted-foreground">
+                          {t(language, "trackingMode")}
+                        </dt>
                         <dd>{t(language, "sourceLocal")}</dd>
                       </div>
                     </dl>

@@ -85,7 +85,10 @@ async function callLocalAi(input: GenerateReplyInput): Promise<string> {
   };
 
   return (
-    data.message?.content ?? data.choices?.[0]?.message?.content ?? data.response ?? ""
+    data.message?.content ??
+    data.choices?.[0]?.message?.content ??
+    data.response ??
+    ""
   ).trim();
 }
 

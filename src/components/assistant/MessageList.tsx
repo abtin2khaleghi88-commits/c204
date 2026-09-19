@@ -123,9 +123,7 @@ export function MessageList({
                 <div className="rounded-2xl rounded-br-sm border border-primary/40 bg-primary/15 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
                   {message.content}
                 </div>
-                {message.attachments?.length ? (
-                  <Attachments files={message.attachments} />
-                ) : null}
+                {message.attachments?.length ? <Attachments files={message.attachments} /> : null}
                 <div className="flex justify-end gap-0.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
                   <CopyAction language={language} text={message.content} />
                   <ActionButton
@@ -169,10 +167,7 @@ export function MessageList({
                     </>
                   ) : (
                     <div className="flex items-center gap-0.5 opacity-60 transition group-hover:opacity-100 focus-within:opacity-100">
-                      <ActionButton
-                        label={t(language, "play")}
-                        onClick={() => onSpeak(message)}
-                      >
+                      <ActionButton label={t(language, "play")} onClick={() => onSpeak(message)}>
                         <Volume2 className="h-3.5 w-3.5" />
                       </ActionButton>
                       <CopyAction language={language} text={message.content} />

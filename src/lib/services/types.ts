@@ -65,12 +65,7 @@ export type ServiceDefinition = {
 };
 
 export type ServiceAvailability =
-  | "available"
-  | "unavailable"
-  | "not_configured"
-  | "disabled"
-  | "quota_exhausted"
-  | "unknown";
+  "available" | "unavailable" | "not_configured" | "disabled" | "quota_exhausted" | "unknown";
 
 export type UsageSnapshot = {
   serviceId: string;

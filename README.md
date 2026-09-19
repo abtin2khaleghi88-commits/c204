@@ -1,350 +1,228 @@
-# Welcome to your Lovable project
+# C204 — Yerel (Offline) Kişisel AI Asistanı
 
-This project was built with [Lovable](https://lovable.dev).
+C204; tamamen yerel çalışabilen, modüler sağlayıcı mimarisine sahip, şeffaf
+kullanım takibi yapan bir kişisel AI asistan arayüzüdür. Ücretli / tokene bağlı
+hiçbir servis kullanılmaz; her dış bağımlılık ya kendi bilgisayarınızdaki bir
+sunucudur ya da tarayıcının kendi ücretsiz API'sidir.
 
-## Build with Lovable
-
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+- Stack: TanStack Start + React + TypeScript + Tailwind CSS v4
+- Tek backend ucu: `POST /api/assistant`
+- Kalıcılık: `localStorage` (yeni veritabanı yok)
 
 ---
 
-## Yerel AI Asistan — Entegrasyon Rehberi (Integration Guide)
+# 1. ÖZELLİK DÖKÜMÜ (mevcut durum)
 
-### AI çağrısı NEREDE yapılıyor? / Where is the AI called?
+## 1.1 Sohbet
 
-Tüm kod tabanında yapay zekaya giden **tek** nokta:
+| Özellik | Nerede | Not |
+| --- | --- | --- |
+| Akan (streaming) yanıt | `src/lib/assistant-client.ts` → `streamChat()`, `src/routes/api/assistant.ts` (`action:"chat"`) | SSE: `memory` → `delta` → `done` |
+| Markdown + kod bloğu | `src/components/assistant/Markdown.tsx` | highlight.js, kod bloğu kopyalama |
+| Mesaj aksiyonları | `src/components/assistant/MessageList.tsx` | kopyala, kullanıcı mesajını düzenle, yeniden üret |
+| Konuşma listesi | `src/components/assistant/ConversationSidebar.tsx` | `localStorage`, tıklayınca açılır, yeniden adlandır/sil |
+| Ctrl+Enter ile gönderim | `src/components/assistant/Composer.tsx` | Enter satır sonu, Ctrl+Enter gönder |
+| Kısayollar | `src/routes/index.tsx` | Ctrl+K yeni sohbet, Ctrl+M hafıza, Ctrl+, ayarlar |
+| Dosya ekleme | `Composer.tsx` | buton + sürükle-bırak, görsel önizleme, metin dosyası özeti prompt'a geçer |
+| İptal | `index.tsx` (`AbortController`) | akış ortasında durdurulabilir |
 
-- **Dosya:** `src/lib/backend/ai-provider.server.ts`
-- **Fonksiyon:** `generateAssistantReply()` → içinde `callLocalAi()`
-- Geçici demo cevaplayıcı: aynı dosyadaki `createMockReply()` (silinmek üzere yazıldı)
+## 1.2 AI katmanı
 
-Kendi yerel modelinizi bağlamak için `.env` dosyasına şunları ekleyin:
+- **Tek merkezi nokta:** `src/lib/backend/ai-provider.server.ts`
+  - `streamAssistantReply()` → `streamLocalAi()` (Ollama NDJSON akışı)
+  - `generateAssistantReply()` → `callLocalAi()`
+  - `createMockReply()` — yerel sunucu yapılandırılmadığında geçici demo yanıtı
+- **Yapılandırma:** `src/config/local-stack.config.ts`
+  ```
+  LOCAL_AI_BASE_URL=http://localhost:11434   # Ollama
+  LOCAL_AI_CHAT_PATH=/api/chat
+  LOCAL_AI_MODEL=qwen3.5:4b
+  ```
+- `LOCAL_AI_BASE_URL` tanımlı değilse demo yanıt döner; panoda servis
+  "yapılandırılmadı" olarak görünür (sahte kota gösterilmez).
+- Başka bir API şekline geçmek için **yalnızca** `callLocalAi()` /
+  `streamLocalAi()` gövdesi değişir.
+
+## 1.3 Hafıza (kısa + uzun süreli, vektör tabanlı)
+
+- **Tek giriş noktası:** `retrieveMemory()` — `src/lib/backend/memory-store.server.ts`
+- **Kısa süreli:** son 2 konuşma özeti; sabit, küçük veri, arama yapılmaz.
+- **Uzun süreli:** `embedText()` ile vektörleştirme + cosine benzerliği;
+  **sadece top-K (varsayılan 4)** kayıt modele gider, `RELEVANCE_THRESHOLD`
+  altındakiler hiç gösterilmez. "Tüm geçmişi prompt'a bas" yaklaşımı yoktur.
+- **Embedding:** `src/lib/backend/memory-embeddings.server.ts` — saf JavaScript
+  (Türkçe karakter normalizasyonu → tokenizasyon → FNV-1a hashing trick →
+  256 boyutlu L2-normalize vektör). Dış API, model indirme, anahtar yok:
+  %100 çevrimdışı, ücretsiz, kotasız.
+- **Arayüz:** `MemoryPanel.tsx` (liste, arama, kategori filtresi, düzenle/sil,
+  toplu silme), `MemoryHits.tsx` (her yanıtta kullanılan kayıtlar + % alaka skoru),
+  `MemoryGraph.tsx` (canvas 2D güç-yönlendirmeli bağlantı haritası; zoom/pan,
+  hover/tıklamada bağlantılı kayıtların vurgulanması).
+- Tarama sırasında %50 opaklıkta "Güçlü hafıza taraması yapılıyor…" göstergesi.
+
+## 1.4 TTS (sesli okuma)
+
+- **Tek merkezi nokta:** `src/lib/backend/tts-provider.server.ts` →
+  `synthesizeSpeech()` → `callLocalTts()`
+- Sözleşme:
+  ```
+  POST http://localhost:8880/synthesize        # LOCAL_TTS_URL
+  { "text": "...", "language": "tr" | "en" }
+  → audio/wav | audio/mpeg | audio/ogg   (önerilen: 16-bit PCM WAV, 22050/24000 Hz, mono)
+  → veya { "audio": "<base64>", "contentType": "audio/wav" }   ("audio_base64" / "data" de kabul)
+  ```
+- **Oynatıcı motordan bağımsız:** `src/lib/audio-player.ts` →
+  `playAudioSource()`; `Blob`, `ArrayBuffer`, base64/data-URL veya `Response`
+  (stream) kabul eder.
+- **Gerçek sese senkron animasyon:** Web Audio `AnalyserNode`, 9 frekans bandının
+  gerçek genliği `onLevels` ile yayılır; `VoiceWave.tsx` içindeki nabız atan halka
+  bu değerlerle hareket eder (sabit döngü değil).
+- **Yedek:** yerel sunucu kapalıysa backend `{ fallback: true }` döner ve
+  (kullanıcı kapatmadıysa) tarayıcı `SpeechSynthesis`'i devreye girer —
+  `speakWithBrowser()`. Bu **geçici önizleme yedeğidir**, robotik ses beklenir;
+  panodan kapatılabilir ve kapalıysa hiç çağrılmaz.
+
+## 1.5 STT (push-to-talk / basılı tutarak konuşma)
+
+- **Tek merkezi nokta:** `src/lib/backend/stt-provider.server.ts` →
+  `transcribeAudio()` → `callLocalStt()`
+- Sözleşme:
+  ```
+  POST http://localhost:9000/transcribe       # LOCAL_STT_URL (yerel Whisper)
+  multipart/form-data: file=<audio/webm|ogg|wav>, language="tr"|"en"
+  → { "text": "..." }   ("transcript" / "transcription" / { result: { text } } de kabul)
+  ```
+- **Arayüz:** `src/hooks/use-push-to-talk.ts` — `MediaRecorder` + `AnalyserNode`;
+  ayarlardan seçilen tuş (varsayılan Sağ Ctrl) basılı tutulduğu sürece kayıt,
+  mikrofon butonunda fare/dokunma ile de aynı davranış; nabız atan kırmızı
+  gösterge + **gerçek mikrofon genliğine** göre dalga.
+- Bırakınca kayıt durur, metin **mesaj kutusuna yazılır — otomatik gönderilmez.**
+- Boş/başarısız transkripsiyon gönderilmez; mikrofon izni reddi ve
+  desteklenmeyen tarayıcı ayrı hata mesajlarıyla karşılanır.
+- **Yedek:** yerel Whisper kapalıysa (ve izin verilmişse) tarayıcı
+  `SpeechRecognition` sonucu kullanılır — yine geçici önizleme yedeği.
+
+## 1.6 Kullanım & Limitler panosu (sağlayıcı yönetimi)
+
+Sol menüdeki **Kullanım & Limitler** ve başlıktaki etkinlik butonu işlevsel bir
+denetim masası açar (`src/components/assistant/UsagePanel.tsx`).
+
+| Dosya | Rol |
+| --- | --- |
+| `src/lib/services/types.ts` | `ServiceDefinition`, `UsageSnapshot`, birim/dönem türleri |
+| `src/lib/services/registry.ts` | Gerçek servislerin kaydı (sahte servis YOK) |
+| `src/lib/services/usage-store.ts` | `localStorage: c204.usage.v1` — toggle, limit, sayaçlar, günlük/aylık reset |
+| `src/lib/services/provider-manager.ts` | `selectProvider()` — yetenek → sağlayıcı → yapılandırma → erişim → kota |
+| `src/lib/services/voice.ts` | `speakViaProviders()`, `planStt()`, kullanım kaydı |
+| `src/routes/api/assistant.ts` (`action:"status"`) | yerel uçların gerçek erişilebilirlik taraması |
+
+Kayıtlı servisler: `ai.ollama`, `ai.demo`, `stt.local`, `stt.browser`,
+`tts.local`, `tts.browser`, `memory.embeddings`.
+
+**Kurallar**
+
+- **Kota uydurulmaz.** Sağlayıcı kalan kotayı bildirmiyorsa kart "yerel sayım"
+  der; elle girilen limitler "kullanıcı tanımlı tahmin" etiketiyle gösterilir.
+- **Kapalı sağlayıcı çağrılmaz.** Yetenek kapalıysa mikrofon hiç açılmaz;
+  `speakViaProviders()` kapalı motoru atlar, yedeğe geçerse arayüzde bildirir.
+- **Birimler servise göre:** AI = istek, TTS = karakter, STT = ses saniyesi,
+  hafıza = vektörleştirme çağrısı.
+- **Yerel AI için çevrimiçi kota yoktur;** sınır yerel donanım/model hızıdır —
+  "sınırsız" iddiası yapılmaz.
+- Modlar: otomatik / sadece yerel / elle (belirli sağlayıcı).
+
+## 1.7 Arayüz, tema, dil
+
+- HUD tarzı koyu tema: turkuaz vurgular, camsı paneller, ızgara zemin
+  (`src/styles.css`); tipografi JetBrains Mono + başlıklarda Orbitron.
+- Tema: `src/lib/theme.ts` — `light | dark | system`, kalıcı, sistem temasını takip eder.
+- Dil: TR/EN — `src/lib/i18n.ts`, ayarlardan geçiş, tüm metinler iki dilde.
+- Mobil: kenar çubuğu ve paneller `Sheet` olarak açılır.
+
+## 1.8 REST sözleşmesi (tek uç)
 
 ```
-LOCAL_AI_BASE_URL=http://localhost:11434   # Ollama
+POST /api/assistant
+{ "action": "chat",   messages, language, useShortTerm, useLongTerm, attachments }  → SSE
+{ "action": "tts",    text, language }        → audio/* | { audio } | { fallback: true }
+{ "action": "stt",    audio, mimeType, language } → { text } | { fallback: true }
+{ "action": "status", probe }                 → { availability, config }
+{ "action": "memory.list" | "memory.search" | "memory.upsert"
+           | "memory.delete" | "memory.deleteMany" | "memory.summarize" }
+```
+
+## 1.9 .env
+
+```
+LOCAL_AI_BASE_URL=http://localhost:11434
 LOCAL_AI_CHAT_PATH=/api/chat
-LOCAL_AI_MODEL=llama3.1
+LOCAL_AI_MODEL=qwen3.5:4b
 LOCAL_TTS_URL=http://localhost:8880/synthesize
-LOCAL_STT_URL=http://localhost:9000/transcribe   # yerel Whisper
-LOCAL_MEMORY_BASE_URL=http://localhost:8000  # Chroma
+LOCAL_TTS_TIMEOUT_MS=8000
+LOCAL_STT_URL=http://localhost:9000/transcribe
+LOCAL_STT_TIMEOUT_MS=15000
+LOCAL_MEMORY_BASE_URL=http://localhost:8000
 MEMORY_SHORT_TERM_COUNT=2
 MEMORY_COLLECTION=local_assistant_memory
 ```
 
-`LOCAL_AI_BASE_URL` tanımlıysa gerçek yerel sunucu kullanılır; tanımlı değilse demo yanıt döner.
-Farklı bir API şekli kullanıyorsanız yalnızca `callLocalAi()` gövdesini değiştirin — başka dosyaya dokunmanız gerekmez.
+---
 
-### Mimari haritası
+# 2. GELİŞTİRİLEBİLİR TARAFLAR (öneriler)
 
-| Katman | Dosya | Görev |
-| --- | --- | --- |
-| Yapılandırma | `src/config/local-stack.config.ts` | Tüm endpoint/env ayarları (tek yer) |
-| Backend giriş noktası | `src/routes/api/assistant.ts` | `POST /api/assistant` — tek REST ucu (`action` alanı ile) |
-| AI | `src/lib/backend/ai-provider.server.ts` | **AI çağrısı burada** |
-| TTS | `src/lib/backend/tts-provider.server.ts` | `synthesizeSpeech()` → yalnızca yerel sunucu (ücretli sağlayıcı yok) |
-| Hafıza | `src/lib/backend/memory-store.server.ts` | Kısa/uzun süreli hafıza iskeleti + Chroma bağlantı noktası |
-| Frontend istemci | `src/lib/assistant-client.ts` | `/api/assistant` sarmalayıcısı, TTS oynatma |
+Sırayla, etki/emek dengesine göre:
 
-### REST sözleşmesi
-
-```
-POST /api/assistant
-{ "action": "chat", "messages": [...], "language": "tr", "useShortTerm": false, "useLongTerm": true, "attachments": [...] }
-{ "action": "tts", "text": "...", "language": "tr" }        // audio/* , { audio: base64 } veya { fallback: true }
-{ "action": "memory.list" }
-{ "action": "memory.upsert", "record": { ... } }
-{ "action": "memory.delete", "id": "..." }
-```
-
-### Hafıza sistemi bağlantı noktaları
-
-- `buildMemoryContext()` → prompt'a eklenen hafıza metnini üretir.
-- `searchLongTermMemory()` → içindeki `TODO` yorumuna Chroma sorgunuzu yazın.
-- `listMemories() / upsertMemory() / deleteMemory()` → Hafıza Yönetimi panelini besler (arayüzde sol alt köşe).
-- Hafıza taraması sırasında arayüzde %50 opaklıkta "Güçlü hafıza taraması yapılıyor..." göstergesi çıkar.
-
-### Arayüz özellikleri
-
-- Sol tarafta kutucuk halinde konuşma listesi (yerel `localStorage`).
-- Klavye ile metin girişi + push-to-talk (basılı tutarak konuşma; metin otomatik gönderilmez).
-- Dosya ekleme: buton + sürükle-bırak; metin dosyalarının içeriği prompt'a özet olarak geçer.
-- Ayarlar: Türkçe/İngilizce geçişi, otomatik sesli okuma, hafıza tercihleri.
-- AI konuşurken ses dalgası + parıltı animasyonu.
+1. **Hafıza kalıcılığı.** `memory-store.server.ts` şu an süreç belleğinde
+   çalışıyor; sunucu yenilenince kayıtlar sıfırlanır. Chroma bağlantısını
+   (`LOCAL_MEMORY_BASE_URL`) `searchLongTermMemory()` içinde tamamlamak veya
+   basit bir JSON/SQLite dosyası yazmak en yüksek getirili adım.
+2. **Daha güçlü embedding.** Hashing trick leksikaldir (eşanlamlıları kaçırır).
+   Ollama `/api/embeddings` (örn. `nomic-embed-text`) tek fonksiyon değişikliğiyle
+   bağlanabilir; ücretsiz ve yerel kalır. `embedText()` imzası aynı kalır.
+3. **Otomatik konuşma özeti.** Kısa süreli hafıza şu an elle
+   (`memory.summarize`) besleniyor; sohbet kapanınca modelden 2-3 cümlelik özet
+   isteyip otomatik kaydetmek "daha fazla hatırla, daha az gönder" hedefini
+   tamamlar.
+4. **Streaming TTS.** Yanıt bittikten sonra okumak yerine cümle cümle
+   sentezlemek (ilk cümle gelince okumaya başlamak) algılanan gecikmeyi büyük
+   ölçüde düşürür; `playAudioSource()` zaten `Response` stream kabul ediyor.
+5. **Yerel uç sağlığı için tek seferlik yeniden tarama.** `status` uçu OPTIONS
+   ile yokluyor; bazı sunucular OPTIONS'a cevap vermez. Ollama için `/api/tags`
+   gibi, TTS/STT için de hafif bir `GET /health` sözleşmesi tanımlanabilir.
+6. **Konuşma arama.** Konuşma listesinde başlık/içerik araması ve tarihe göre
+   gruplama (bugün / bu hafta / daha önce).
+7. **Dışa/içe aktarma.** Konuşmaları ve hafıza kayıtlarını JSON olarak
+   indirme/geri yükleme — yedekleme ve makine değiştirme için.
+8. **Dosya ekleri.** Şu an yalnızca metin dosyalarının özeti prompt'a giriyor;
+   PDF/DOCX metin çıkarımı ve uzun dosyalar için parçalama (chunking) +
+   hafızaya alma eklenebilir.
+9. **Model seçimi arayüzde.** `LOCAL_AI_MODEL` yalnızca `.env`'den geliyor;
+   Ollama `/api/tags` listesinden arayüzde model seçmek pratik olur.
+10. **Erişilebilirlik ve klavye.** Panellerde odak tuzağı, `aria-live` ile akan
+    yanıtın ekran okuyucuya bildirilmesi, kısayolların keşfedilebilir listesi.
+11. **Test.** Vitest ile `embedText`/`retrieveMemory` (top-K ve eşik davranışı) ve
+    `selectProvider`/`planStt` (kapalı sağlayıcı asla seçilmez) için birim
+    testleri — bu iki alan sistemin en kritik davranış sözleşmesi.
+12. **Sohbet sanallaştırma.** Çok uzun konuşmalarda mesaj listesini
+    sanallaştırmak (windowing) kaydırma performansını korur.
 
 ---
 
-## TTS Entegrasyon Rehberi (TTS Integration Guide)
+# 3. SON TARAMA NOTLARI
 
-### Kural: ucretli/tokene bagli hicbir saglayici yok
-
-Bu projede **ucretli veya token bazli hicbir TTS servisi kullanilmaz.**
-Lovable AI Gateway (`openai/gpt-4o-mini-tts`), ElevenLabs, Azure ve Google
-entegrasyonlari **tamamen kaldirildi**. Tek hedef motor, sizin kendi
-bilgisayarinizda calisan yerel TTS sunucunuzdur.
-
-```
-LOCAL_TTS_URL=http://localhost:8880/synthesize   # varsayilan
-LOCAL_TTS_TIMEOUT_MS=8000                        # opsiyonel
-```
-
-### Ses üretimi NEREDE yapılıyor? / Where is speech generated?
-
-Tum kod tabaninda TTS'e giden **tek** nokta:
-
-- **Dosya:** `src/lib/backend/tts-provider.server.ts`
-- **Merkezi fonksiyon:** `synthesizeSpeech()`
-- **Degistireceginiz fonksiyon:** `callLocalTts()` — istek/yanit sekli burada
-
-Kendi API sekliniz farkliysa (govde alanlari, header'lar, GET/POST) **sadece**
-`callLocalTts()` govdesini degistirin. Baska hicbir dosyaya dokunmaniz gerekmez.
-
-### Yerel sunucunuzun uygulamasi gereken sozlesme
-
-**Istek**
-
-```
-POST http://localhost:8880/synthesize
-Content-Type: application/json
-
-{ "text": "okunacak metin", "language": "tr" }     // language: "tr" | "en"
-```
-
-**Yanit A — onerilen: ham ses baytlari**
-
-```
-200 OK
-Content-Type: audio/wav        # audio/mpeg veya audio/ogg de olur
-<binary audio>
-```
-
-**Yanit B — JSON + base64**
-
-```
-200 OK
-Content-Type: application/json
-
-{ "audio": "<base64>", "contentType": "audio/wav" }
-```
-
-`audio` yerine `audio_base64` veya `data` alan adlari da kabul edilir.
-`contentType` verilmezse `audio/wav` varsayilir.
-
-**Hata**
-
-```
-4xx / 5xx + kisa metin govdesi
-```
-
-**Onerilen ses formati:** 16-bit PCM WAV, 22050 Hz veya 24000 Hz, **mono**.
-(mp3/ogg da calisir; WAV en hizli decode edilir.)
-
-### GECICI onizleme yedegi (gercek sistemde kullanilmaz)
-
-Yerel sunucu henuz ayakta degilse backend hata firlatmak yerine
-`{ fallback: true }` doner ve arayuz **sessizce** tarayici ici
-`SpeechSynthesis` ile okur:
-
-- **Dosya:** `src/lib/assistant-client.ts` → `previewFallbackSpeak()`
-- Bu yol **yalnizca gelistirme/onizleme** icindir; robotik ses beklenir.
-- Yerel motorunuz baglandigi anda bu yol hic cagrilmaz ve fonksiyon
-  guvenle silinebilir. Uretim/gercek sistemde kullanilmaz.
-
-### Akış (data flow)
-
-```text
-Arayüz  →  speak()                       src/lib/assistant-client.ts
-        →  POST /api/assistant {action:"tts"}   src/routes/api/assistant.ts
-        →  synthesizeSpeech() → callLocalTts()  src/lib/backend/tts-provider.server.ts
-        →  playAudioSource()                    src/lib/audio-player.ts
-        (sunucu kapali ise: previewFallbackSpeak() — gecici)
-```
-
-### Genel ses oynatıcı
-
-- **Dosya:** `src/lib/audio-player.ts`
-- `playAudioSource(source, { onLevels, onEnded })` — `Blob`, `ArrayBuffer`,
-  base64/data-URL string veya `Response` (stream) kabul eder. Hicbir TTS
-  motoruna bagli degildir.
-
-### Gerçek sese senkron dalga animasyonu
-
-`playAudioSource()` Web Audio API'nin **AnalyserNode**'unu kullanir; her
-animasyon karesinde 9 frekans bandinin gercek genligini `0..1` araliginda
-`onLevels` ile yayar. `src/components/assistant/VoiceWave.tsx` bu degerleri
-dogrudan cubuk yuksekligine ve avatar parıltısına uygular. (Gecici tarayici
-yedeginde gercek genlik olmadigi icin dusuk yogunluklu bir gosterge kullanilir.)
+- `tsgo --noEmit`: hata yok.
+- ESLint: tüm hatalar giderildi (kalan uyarılar yalnızca `src/components/ui/*`
+  içindeki shadcn dosyalarının "fast refresh" bilgi notları).
+- Düzeltildi: `planStt()` içinde "elle sağlayıcı" seçimi, yetenek kapalıyken de
+  tarayıcı STT'sine izin verebiliyordu; artık yetenek kapalıysa hiçbir motor
+  çalıştırılmıyor, `sadece yerel` modunda tarayıcı motoru devre dışı ve elle
+  modda yalnızca seçilen sağlayıcı kullanılıyor.
 
 ---
 
-## STT Entegrasyon Rehberi (Speech-to-Text / Push-to-Talk)
+## Geliştirme
 
-### Kural: ucretli/tokene bagli hicbir saglayici yok
-
-OpenAI Whisper API, Google Speech-to-Text, Azure, Deepgram vb. **kullanilmaz.**
-Tek hedef motor: kendi bilgisayarinizda calisan **yerel Whisper** sunucunuz
-(whisper.cpp / faster-whisper / whisper-asr-webservice).
-
+```sh
+npm i
+npm run dev
 ```
-LOCAL_STT_URL=http://localhost:9000/transcribe   # varsayilan
-LOCAL_STT_TIMEOUT_MS=15000                       # opsiyonel
-```
-
-### Ses tanima NEREDE yapiliyor? / Where is speech transcribed?
-
-- **Dosya:** `src/lib/backend/stt-provider.server.ts`
-- **Merkezi fonksiyon:** `transcribeAudio()`
-- **Degistireceginiz fonksiyon:** `callLocalStt()` — istek/yanit sekli burada
-
-Kendi API sekliniz farkliysa **sadece** `callLocalStt()` govdesini degistirin.
-
-### Yerel sunucunuzun uygulamasi gereken sozlesme
-
-**Istek**
-
-```
-POST http://localhost:9000/transcribe
-Content-Type: multipart/form-data
-
-file      = <ses dosyasi>   # audio/webm (tarayici varsayilani), audio/ogg veya audio/wav
-language  = "tr" | "en"
-```
-
-**Yanit**
-
-```
-200 OK
-Content-Type: application/json
-
-{ "text": "cozumlenen metin" }
-```
-
-`text` yerine `transcript`, `transcription` veya `{ "result": { "text": "..." } }`
-alan adlari da kabul edilir.
-
-**Hata:** `4xx / 5xx` + kisa metin govdesi (arayuz sessizce yedege duser).
-
-**Onerilen giris formati:** 16 kHz mono WAV; tarayici webm/opus gonderir, Whisper
-tarafinda `ffmpeg` ile donusturmeniz yeterlidir.
-
-### Arayuz davranisi (push-to-talk)
-
-- Ayarlar > **Konusma tusu** ile tus secilir (varsayilan `ControlRight` = Sag Ctrl);
-  "Tusu degistir" butonuna basip istediginiz tusa basmaniz yeterlidir.
-- Tus basili tutuldugu surece mikrofon kaydeder; composer'da nabız atan kirmizi
-  gosterge + **gercek mikrofon genligine** gore dalga animasyonu gorunur.
-  Fare/dokunma ile mikrofon butonunu basili tutmak da ayni isi yapar.
-- Tus birakilinca kayit durur, ses `/api/assistant` (`action:"stt"`) ucuna gider,
-  donen metin **mesaj kutusuna yazilir — otomatik GONDERILMEZ.**
-- **Dosya:** `src/hooks/use-push-to-talk.ts` (kayit + tus yonetimi),
-  `src/lib/assistant-client.ts` → `transcribeSpeech()` (tek istemci cagrisi).
-
-### GECICI onizleme yedegi (gercek sistemde kullanilmaz)
-
-Yerel Whisper sunucusu ayakta degilse backend `{ fallback: true }` doner ve
-arayuz **sessizce** kayitla es zamanli dinlenen tarayici `SpeechRecognition`
-sonucunu kullanir (TTS'teki `previewFallbackSpeak()` ile ayni mantik).
-Bu yol **yalnizca gelistirme/onizleme** icindir; yerel motorunuz baglandigi anda
-hic kullanilmaz ve `use-push-to-talk.ts` icindeki `createRecognition()` guvenle
-silinebilir.
-
-### Akış (data flow)
-
-```text
-Tus basili   →  usePushToTalk()                  src/hooks/use-push-to-talk.ts
-             →  transcribeSpeech()               src/lib/assistant-client.ts
-             →  POST /api/assistant {action:"stt"}  src/routes/api/assistant.ts
-             →  transcribeAudio() → callLocalStt()  src/lib/backend/stt-provider.server.ts
-             →  metin composer'a yazilir (otomatik gonderim yok)
-             (sunucu kapali ise: tarayici SpeechRecognition — gecici)
-```
-
----
-
-
-
-## Tema / Dark Mode
-
-- **Dosya:** `src/lib/theme.ts` — `light | dark | system` modlari, `localStorage`
-  ile kalici, `system` modunda isletim sistemi temasini otomatik takip eder.
-- Hizli gecis: sohbet basligindaki gunes/ay butonu. Detayli secim: Ayarlar > Tema.
-- Renkler `src/styles.css` icindeki `:root` ve `.dark` token'larindan gelir;
-  ikisi de mavi tonlu, yumusak kontrastli olacak sekilde ayarlandi.
-
-## Hafıza Entegrasyon Rehberi (vektör tabanlı)
-
-Tüm hafıza erişimi TEK fonksiyondan geçer:
-
-- `retrieveMemory()` — `src/lib/backend/memory-store.server.ts`
-  - "tüm metni oku" DEĞİL: kısa süreli hafıza sabit/küçük veri (son 2 konuşma özeti, arama yapılmaz),
-    uzun süreli hafıza embedding + cosine benzerliği ile **sadece top-K (varsayılan 4)** kaydı getirir;
-    `RELEVANCE_THRESHOLD` altındaki hiçbir kayıt modele gösterilmez.
-- `searchLongTermMemory()` — Chroma/kendi vektör DB'nizi bağlayacağınız yer (aynı şekilde sadece top-K dönün).
-- `embedText()` — `src/lib/backend/memory-embeddings.server.ts`; ücretsiz, sınırsız, tamamen çevrimdışı
-  hashing-trick embedding. Kendi embedding modelinizi (örn. Ollama `/api/embeddings`) bağlamak için
-  yalnızca bu fonksiyonun gövdesini değiştirin.
-
-Arayüz, her yanıtta hangi kayıtların kullanıldığını ve alaka skorunu (%) gösterir; Hafıza Yönetimi
-panelinde arama, kategori filtresi, toplu silme ve kayıtlar arası bağlantı haritası bulunur.
-
-Bağlantı haritası (`src/components/assistant/MemoryGraph.tsx`) canvas 2D üzerinde güç-yönlendirmeli
-(force-directed) çalışır: alakalı kayıtlar birbirine yaklaşır, çizgi kalınlığı benzerlik gücünü
-gösterir, bir düğüme gelince/tıklayınca bağlantılı kayıtlar vurgulanıp diğerleri soluklaşır;
-tekerlek ile zoom, sürükleyerek pan yapılır. Tüm çizim tek `requestAnimationFrame` döngüsünde
-olduğu için çok sayıda kayıtta da akıcı kalır.
-
----
-
-## Kullanim & Limitler / Saglayici Yonetimi (Usage & Limits)
-
-Sol menudeki **Kullanim & Limitler** panosu islevsel bir denetim masasidir:
-her gercek servis icin saglayici turu (yerel / tarayici / cevrimici), durum,
-gunluk + aylik kullanim ve sifirlanma zamani gosterilir.
-
-### Katmanlar
-
-| Dosya | Rol |
-| --- | --- |
-| `src/lib/services/types.ts` | `ServiceDefinition`, `UsageSnapshot`, birim/donem turleri |
-| `src/lib/services/registry.ts` | Gercek servislerin kaydi (sahte servis YOK) |
-| `src/lib/services/usage-store.ts` | `localStorage: c204.usage.v1` — toggle, limit, sayaclar |
-| `src/lib/services/provider-manager.ts` | `selectProvider()` — yetenek -> saglayici -> erisim -> kota |
-| `src/lib/services/voice.ts` | `speakViaProviders()`, `planStt()`, kullanim kaydi |
-| `src/components/assistant/UsagePanel.tsx` | Panonun arayuzu |
-
-### Kurallar
-
-- **Kota uydurulmaz.** Saglayici kalan kotayi bildirmiyorsa kart
-  "yerel sayim" der. Elle girilen limitler "kullanici tanimli tahmin"
-  etiketiyle gosterilir; resmi kota olarak sunulmaz.
-- **Kapali saglayici cagrilmaz.** `planStt()` izin vermezse mikrofon hic
-  acilmaz; `speakViaProviders()` kapali motoru atlar ve yedege gecerken
-  bunu arayuzde bildirir.
-- **Birimler servise gore:** AI = istek, TTS = karakter, STT = ses saniyesi,
-  hafiza = vektorlestirme cagrisi.
-- **Yerel AI (Ollama / Qwen3.5 4B) icin cevrimici kota yoktur;** sinir yerel
-  donanim ve model hizidir — "sinirsiz" iddiasi yapilmaz.
-- **Kalicilik:** toggle'lar, saglayici modlari (otomatik / sadece yerel /
-  elle), elle limitler ve sayaclar `localStorage`'da tutulur; yeni backend
-  veya veritabani eklenmez.

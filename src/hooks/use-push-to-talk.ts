@@ -114,7 +114,6 @@ export function usePushToTalk({
     fallbackTextRef.current = "";
     startedAtRef.current = Date.now();
 
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -159,7 +158,6 @@ export function usePushToTalk({
           /* yoksay */
         }
       }
-
 
       const mimeType = MediaRecorder.isTypeSupported("audio/webm")
         ? "audio/webm"
@@ -230,7 +228,6 @@ export function usePushToTalk({
           setTranscribing(false);
         }
       };
-
 
       recorder.start();
       recorderRef.current = recorder;

@@ -38,9 +38,7 @@ export const Route = createFileRoute("/api/assistant")({
         try {
           switch (action) {
             case "chat": {
-              const { streamAssistantReply } = await import(
-                "@/lib/backend/ai-provider.server"
-              );
+              const { streamAssistantReply } = await import("@/lib/backend/ai-provider.server");
 
               const messages = Array.isArray(body["messages"])
                 ? (body["messages"] as { role: "user" | "assistant"; content: string }[])
@@ -164,7 +162,9 @@ export const Route = createFileRoute("/api/assistant")({
               };
 
               const [ai, tts, stt] = await Promise.all([
-                config.ai.enabled ? reach(`${config.ai.baseUrl}/api/tags`) : Promise.resolve("not_configured" as const),
+                config.ai.enabled
+                  ? reach(`${config.ai.baseUrl}/api/tags`)
+                  : Promise.resolve("not_configured" as const),
                 reach(config.tts.url, { method: "OPTIONS" }),
                 reach(config.stt.url, { method: "OPTIONS" }),
               ]);
@@ -188,7 +188,6 @@ export const Route = createFileRoute("/api/assistant")({
                 },
               });
             }
-
 
             case "memory.list": {
               const records = memory.listMemories();
