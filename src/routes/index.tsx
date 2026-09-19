@@ -451,6 +451,16 @@ function AssistantPage() {
               variant="ghost"
               size="icon"
               className="h-8 w-8 rounded-full"
+              aria-label={t(language, "usagePanel")}
+              title={t(language, "usagePanel")}
+              onClick={() => setUsageOpen(true)}
+            >
+              <Activity className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
               aria-label={t(language, "theme")}
               title={t(language, "theme")}
               onClick={() => updateTheme(isDark ? "light" : "dark")}
