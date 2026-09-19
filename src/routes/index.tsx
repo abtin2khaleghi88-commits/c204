@@ -489,6 +489,19 @@ function AssistantPage() {
 
         <div className="px-3 pb-4 sm:px-4 sm:pb-5">
           <div className="mx-auto max-w-3xl">
+            {(notice || pushToTalk.error) && (
+              <button
+                type="button"
+                onClick={() => setNotice(null)}
+                className="hud-text mb-2 block w-full rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-left text-[11px] text-primary"
+              >
+                {pushToTalk.error === "stt-disabled"
+                  ? t(language, "sttOff")
+                  : pushToTalk.error
+                    ? t(language, "sttError")
+                    : notice}
+              </button>
+            )}
             <Composer
               language={language}
               disabled={thinking}
