@@ -1,4 +1,4 @@
-import { MessageSquare, Plus, Brain, Settings2, Trash2 } from "lucide-react";
+import { Activity, MessageSquare, Plus, Brain, Settings2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { Language } from "@/lib/assistant-client";
