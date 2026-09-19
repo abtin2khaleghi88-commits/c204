@@ -95,6 +95,10 @@ export function ConversationSidebar({
           <Brain className="h-4 w-4 text-primary" />
           {t(language, "memoryPanel")}
         </Button>
+        <Button variant="ghost" className="w-full justify-start gap-2" onClick={onOpenUsage}>
+          <Activity className="h-4 w-4 text-primary" />
+          {t(language, "usagePanel")}
+        </Button>
         <Button variant="ghost" className="w-full justify-start gap-2" onClick={onOpenSettings}>
           <Settings2 className="h-4 w-4 text-primary" />
           {t(language, "settings")}
